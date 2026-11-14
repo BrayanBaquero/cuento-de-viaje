@@ -23,6 +23,18 @@ Abre `http://localhost:5173`. Si agregas `?reset` al final de la dirección, el 
 | Volver al mapa | Botón de casa | Esc |
 | Silencio | Botón de altavoz | M |
 
+### Atajos de prueba (solo para desarrollo)
+
+| Parámetro | Efecto |
+|---|---|
+| `?reset` | Borra el progreso guardado |
+| `?etapa=1..4` | Abre directamente un nivel |
+| `?escena=Mapa`, `Mini1`, `Mini2`, `Cofre` | Abre directamente esa escena |
+| `?auto` | Salta las tarjetas de instrucciones y de derrota |
+| `?captura` | Sin fundidos ni animaciones de entrada (para capturas) |
+| `?diario` | Muestra la primera página del diario al entrar a un nivel |
+| `?caras` | Naipes de la memoria boca arriba |
+
 ## Archivos
 
 | Archivo | Qué contiene |

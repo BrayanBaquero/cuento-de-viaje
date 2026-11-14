@@ -161,6 +161,10 @@ const Sonido = {
     switch (nombre) {
       case 'tap': this.tono(880, 0.07, 'triangle', 0.1); break;
       case 'salto': this.barrido(380, 760, 0.16, 'triangle', 0.1); break;
+      case 'salto2':
+        this.barrido(560, 1120, 0.18, 'triangle', 0.09);
+        this.tono(1760, 0.2, 'sine', 0.06, 0.06);
+        break;
       case 'pisar': this.barrido(520, 140, 0.18, 'square', 0.06); break;
       case 'corazon':
         this.tono(1568, 0.08, 'triangle', 0.1);
@@ -545,7 +549,8 @@ class Boot extends Phaser.Scene {
       // Atajo de prueba: ?etapa=1..4 o ?escena=Mapa abre esa escena directamente
       const q = new URLSearchParams(location.search);
       const etapa = parseInt(q.get('etapa'), 10);
-      const destino = etapa >= 1 && etapa <= 4 ? 'Etapa' + etapa : ['Mapa', 'Cofre'].includes(q.get('escena')) ? q.get('escena') : 'Intro';
+      const destino = etapa >= 1 && etapa <= 4 ? 'Etapa' + etapa
+        : ['Mapa', 'Cofre', 'Mini1', 'Mini2'].includes(q.get('escena')) ? q.get('escena') : 'Intro';
       this.scene.start(destino);
     });
   }
@@ -916,14 +921,14 @@ const NIVELES = [
       ['f', 44, 14], ['m', 52, 14], ['x', 55, 14], ['x', 56, 14], ['h', 63, 13], ['h', 64, 13],
       ['h', 65, 13], ['c', 70, 14]],
   },
-  { // 2 · Primera cita — más huecos y la primera plataforma móvil
+  { // 2 · Primera cita — estrena el salto de pétalo (doble salto) y la primera plataforma móvil
     ancho: 78,
     suelo: [[0, 14], [17, 28], [32, 44], [52, 60], [63, 78]],
     bloques: [[55, 13, 2]],
-    plataformas: [[6, 12, 3], [20, 12, 3], [24, 9, 3], [29, 13, 2], [36, 12, 4], [66, 12, 3], [70, 9, 2]],
+    plataformas: [[6, 12, 3], [20, 12, 3], [24, 9, 3], [36, 12, 4], [66, 12, 3], [70, 9, 2]],
     moviles: [[45, 14, 4]],
     obj: [['S', 2, 14], ['h', 7, 11], ['h', 8, 11], ['m', 11, 14], ['e', 22, 14], ['h', 25, 8],
-      ['h', 26, 8], ['m', 34, 14], ['x', 37, 14], ['e', 40, 14], ['f', 42, 14], ['m', 58, 14],
+      ['h', 26, 8], ['h', 25, 3], ['h', 26, 3], ['f', 26, 14], ['m', 34, 14], ['x', 37, 14], ['e', 40, 14], ['f', 42, 14], ['m', 58, 14],
       ['x', 65, 14], ['h', 67, 11], ['h', 68, 11], ['h', 71, 8], ['c', 75, 14]],
   },
   { // 3 · Nuestro lugar — bosque con plataformas móviles
@@ -976,6 +981,8 @@ class Nivel extends Phaser.Scene {
     this.buffer = 0;
     this.aterrizaje = 0;
     this.saltoPrevio = false;
+    this.dobleSalto = i >= 1; // habilidad que se gana en la etapa II
+    this.saltosAire = 0;
     this.enSueloPrevio = true;
     this.vyPrevia = 0;
     this.estado = '';
@@ -1079,6 +1086,10 @@ class Nivel extends Phaser.Scene {
     cam.startFollow(this.jug, true, 0.12, 0.12);
     cam.setFollowOffset(-Math.min(160, W * 0.12), 0);
 
+    this.petalos = this.add.particles(0, 0, 'petalo', {
+      speed: { min: 60, max: 150 }, angle: { min: 20, max: 160 }, lifespan: 700,
+      rotate: { start: 0, end: 360 }, scale: { start: 1.1, end: 0.3 }, alpha: { start: 1, end: 0 }, emitting: false,
+    }).setDepth(19);
     this.polvo = this.add.particles(0, 0, 'polvo', {
       speedX: { min: -60, max: 60 }, speedY: { min: -30, max: -5 }, lifespan: 380,
       scale: { start: 1, end: 0.2 }, alpha: { start: 0.8, end: 0 }, emitting: false,
@@ -1099,6 +1110,7 @@ class Nivel extends Phaser.Scene {
       return svgATextura(this, clave, arte);
     })).then(() => {
       if (sesion !== this.sesion || !this.sys.isActive()) return;
+      arteEtapaCargada = i;
       this.pintarEscenario(i);
       this.physics.resume();
       this.listo = true;
@@ -1202,6 +1214,10 @@ class Nivel extends Phaser.Scene {
         : 'Encuentra las 3 páginas del diario y llega al cofre\n← →  o  A D para moverte · Espacio para saltar', 15, tinta,
       { peso: '700', sombra, desenfoque: 8, interlineado: 4, ancho: 340 }),
     ];
+    if (i === 1) {
+      lineas.push(texto(this, W / 2, 372, 'Nueva habilidad: salto de pétalo\nEn el aire, salta otra vez', 18, hex(TINTA),
+        { serif: true, peso: 'italic 700', sombra: '#FFF6E2', desenfoque: 10, interlineado: 2 }));
+    }
     lineas.forEach((t) => t.setScrollFactor(0).setDepth(70).setAlpha(0));
     this.tweens.add({ targets: lineas, alpha: 1, duration: 500, delay: 300 });
     this.tweens.add({ targets: lineas, alpha: 0, duration: 600, delay: 3800, onComplete: () => lineas.forEach((t) => t.destroy()) });
@@ -1281,11 +1297,20 @@ class Nivel extends Phaser.Scene {
       b.setVelocityX(Phaser.Math.Linear(b.velocity.x, dir * 215, enSuelo ? 0.3 : 0.15));
       if (dir) this.jug.setFlipX(dir < 0);
     }
+    if (enSuelo) this.saltosAire = 0;
     if (this.buffer > 0 && this.coyote > 0) {
       b.setVelocityY(-660);
       this.buffer = 0;
       this.coyote = 0;
       Sonido.sfx('salto');
+    } else if (this.dobleSalto && ctl.salto && !this.saltoPrevio && !enSuelo && this.coyote <= 0 && this.saltosAire === 0) {
+      // Salto de pétalo: un segundo salto en el aire (desde la etapa II)
+      b.setVelocityY(-580);
+      this.buffer = 0;
+      this.saltosAire = 1;
+      Sonido.sfx('salto2');
+      this.petalos.explode(12, this.jug.x, b.bottom - 6);
+      this.estado = '';
     }
     // Salto más corto si se suelta el botón antes
     if (!ctl.salto && this.saltoPrevio && b.velocity.y < -200) b.setVelocityY(b.velocity.y * 0.45);
@@ -1449,12 +1474,430 @@ class Nivel extends Phaser.Scene {
     this.tweens.add({ targets: this.brilloCofre, scale: 3.4, alpha: 1, duration: 500 });
     aviso(this, W / 2, 260, '¡Encontraste el cofre!', { duracion: 1400 });
 
-    // Fases 2–3: aquí se abrirá el minijuego de la etapa antes de dar la llave.
+    // El cofre guarda el minijuego de la etapa; la llave se gana al superarlo.
+    if (this.sys.game.scene.keys['Mini' + (this.i + 1)]) {
+      this.time.delayedCall(1300, () => irA(this, 'Mini' + (this.i + 1)));
+      return;
+    }
     this.time.delayedCall(900, () => {
       Guardado.darLlave(this.i);
       const cam = this.cameras.main;
       hud(this).volarLlave(this.i, this.cofre.x - cam.scrollX, this.cofre.y - 50, () => irA(this, 'Mapa'));
     });
+  }
+}
+
+/* =====================================================================
+ *  Minijuegos (dentro de los cofres de cada etapa)
+ * ===================================================================== */
+let arteEtapaCargada = -1; // etapa cuyas texturas n_* están en memoria
+
+// Fondo estático de la etapa (reutiliza el arte del nivel recién jugado o lo genera).
+function fondoEtapa(escena, i) {
+  const pintar = () => {
+    fondoDegradado(escena, Arte.CIELOS[i]).setDepth(-10);
+    const astro = [[0.72, 300], [0.25, 300], [0.7, 360], [0.78, 150]][i];
+    escena.add.image(W * astro[0], astro[1], 'n_astro').setDepth(-9);
+    const n = Math.ceil(W / 1024) + 1;
+    ['n_lejos', 'n_medio', 'n_campo'].forEach((clave, j) => {
+      for (let k = 0; k < n; k++) escena.add.image(W / 2 - (n * 1024) / 2 + k * 1024, 0, clave).setOrigin(0).setDepth(-8 + j);
+    });
+    const suelo = escena.add.graphics().setDepth(-4);
+    suelo.fillGradientStyle(0x2A1B23, 0x2A1B23, 0x0E080C, 0x0E080C, 0.92).fillRect(0, 612, W, H - 612);
+    suelo.lineStyle(2, CREMA, 0.35).lineBetween(0, 612, W, 612);
+    escena.add.image(W / 2, H / 2, 'vineta').setDisplaySize(W, H).setDepth(-3);
+  };
+  if (arteEtapaCargada === i && escena.textures.exists('n_lejos')) {
+    pintar();
+    return Promise.resolve();
+  }
+  const piezas = Object.entries(Arte.nivelArte(i, NIVELES[i])).filter(([k]) => k !== 'n_terreno');
+  return Promise.all(piezas.map(([clave, arte]) => {
+    if (escena.textures.exists(clave)) escena.textures.remove(clave);
+    return svgATextura(escena, clave, arte);
+  })).then(() => {
+    arteEtapaCargada = i;
+    if (escena.sys.isActive()) pintar();
+  });
+}
+
+// Tarjeta de papel con título, texto y un botón (para instrucciones, derrota, etc.)
+function tarjetaMensaje(escena, titulo, cuerpo, etiqueta, alTocar) {
+  // Atajo de prueba: ?auto salta las tarjetas de instrucciones
+  if (new URLSearchParams(location.search).has('auto')) {
+    escena.time.delayedCall(0, alTocar);
+    return () => {};
+  }
+  const velo = escena.add.rectangle(W / 2, H / 2, W, H, 0x0A0608, 0.55).setDepth(89).setScrollFactor(0);
+  const w = Math.min(350, W - 32);
+  const cuerpoTxt = texto(escena, 0, 0, cuerpo, 17, hex(TINTA), { ancho: w - 56, interlineado: 5, peso: '600' });
+  const h = cuerpoTxt.height + 190;
+  const c = escena.add.container(W / 2, 430).setDepth(90).setScrollFactor(0);
+  const g = escena.add.graphics();
+  g.fillStyle(0x000000, 0.35).fillRoundedRect(-w / 2 + 4, -h / 2 + 8, w, h, 14);
+  g.fillStyle(0xFBF3E2, 1).fillRoundedRect(-w / 2, -h / 2, w, h, 14);
+  g.lineStyle(2.5, TINTA, 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 14);
+  g.lineStyle(1.2, 0xD9A23E, 0.8).strokeRoundedRect(-w / 2 + 8, -h / 2 + 8, w - 16, h - 16, 9);
+  const tituloTxt = texto(escena, 0, -h / 2 + 52, titulo, 32, hex(TINTA), { serif: true, peso: '700', ancho: w - 40 });
+  cuerpoTxt.setY(-h / 2 + 92 + cuerpoTxt.height / 2);
+  let hecho = false;
+  const cerrar = () => {
+    if (hecho) return;
+    hecho = true;
+    if (escena.input.keyboard) escena.input.keyboard.off('keydown-ENTER', cerrar).off('keydown-SPACE', cerrar);
+    escena.tweens.add({
+      targets: [c, velo], alpha: 0, duration: 200,
+      onComplete: () => { c.destroy(); velo.destroy(); alTocar(); },
+    });
+  };
+  const b = boton(escena, 0, h / 2 - 50, etiqueta, cerrar, { ancho: 210, alto: 56, tam: 26 });
+  c.add([g, tituloTxt, cuerpoTxt, b]);
+  if (escena.input.keyboard) escena.input.keyboard.on('keydown-ENTER', cerrar).on('keydown-SPACE', cerrar);
+  if (!SIN_FUNDIDO) {
+    c.setScale(0.85).setAlpha(0);
+    velo.setAlpha(0);
+    escena.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 260, ease: 'Back.easeOut' });
+    escena.tweens.add({ targets: velo, alpha: 1, duration: 200 });
+  }
+  return cerrar;
+}
+
+// Botón de casa para salir al mapa sin la llave (y tecla Esc)
+function botonCasa(escena, puedeSalir) {
+  disco(escena, 34, 42, 22).setDepth(60);
+  escena.add.image(34, 42, 'ico_casa').setScale(0.5).setDepth(60);
+  const salir = () => { if (puedeSalir()) { Sonido.sfx('tap'); irA(escena, 'Mapa'); } };
+  escena.add.zone(34, 42, 56, 56).setInteractive({ useHandCursor: true }).on('pointerup', salir);
+  if (escena.input.keyboard) escena.input.keyboard.on('keydown-ESC', salir);
+}
+
+// Al ganar: la llave sale del centro, vuela al HUD y se vuelve al mapa
+function ganarLlave(escena, i, x, y, titulo) {
+  Guardado.darLlave(i);
+  const t = texto(escena, W / 2, 300, titulo, 44, hex(CREMA), { serif: true, peso: '700', sombra: '#000000', desenfoque: 14 }).setDepth(70).setAlpha(0);
+  escena.tweens.add({ targets: t, alpha: 1, y: 280, duration: 500, ease: 'Back.easeOut' });
+  escena.time.delayedCall(700, () => hud(escena).volarLlave(i, x, y, () => irA(escena, 'Mapa')));
+}
+
+/* ---------- Minijuego 1 · El frasco de los recuerdos ---------- */
+const META_FRASCO = 15;
+const TIEMPO_FRASCO = 45000;
+
+class Mini1 extends Phaser.Scene {
+  constructor() { super('Mini1'); }
+
+  create() {
+    entrar(this);
+    hud(this).mostrarLlaves(true);
+    this.estado = 'intro';
+    this.objetos = [];
+    fondoEtapa(this, 0);
+    particulasEtapa(this, 0).setDepth(5);
+
+    const ancho = Math.min(W, 560);
+    this.zona = { x0: W / 2 - ancho / 2 + 46, x1: W / 2 + ancho / 2 - 46 };
+    this.brilloFrasco = this.add.image(W / 2, 660, 'brillo').setTint(ORO).setScale(1.6).setAlpha(0.5).setBlendMode('ADD').setDepth(9);
+    this.frasco = this.add.image(W / 2, 680, 'frasco').setDepth(10);
+    this.objetivoX = W / 2;
+
+    // Marcadores
+    const marco = (x, ancho2) => {
+      const g = this.add.graphics().setDepth(60);
+      g.fillStyle(0x140C12, 0.45).fillRoundedRect(x - ancho2 / 2, 96, ancho2, 44, 22);
+      g.lineStyle(1.5, CREMA, 0.7).strokeRoundedRect(x - ancho2 / 2, 96, ancho2, 44, 22);
+    };
+    marco(W / 2 - 78, 140);
+    marco(W / 2 + 78, 140);
+    this.add.image(W / 2 - 124, 118, 'petalo_g').setDepth(61);
+    this.txtPuntos = texto(this, W / 2 - 70, 118, `0 / ${META_FRASCO}`, 24, hex(CREMA), { serif: true, peso: '700' }).setDepth(61);
+    this.barraTiempo = this.add.graphics().setDepth(61);
+    this.txtTiempo = texto(this, W / 2 + 92, 118, '45', 24, hex(CREMA), { serif: true, peso: '700' }).setDepth(61);
+    texto(this, W / 2, 168, 'El frasco de los recuerdos', 24, hex(TINTA), { serif: true, peso: 'italic 700', sombra: '#FFF6E2', desenfoque: 10 }).setDepth(61);
+
+    botonCasa(this, () => this.estado !== 'fin');
+
+    this.input.on('pointerdown', (p) => { if (this.estado === 'juego') this.objetivoX = p.x; });
+    this.input.on('pointermove', (p) => { if (this.estado === 'juego' && (p.isDown || !TACTIL)) this.objetivoX = p.x; });
+    this.teclas = this.input.keyboard ? this.input.keyboard.addKeys({ izq: 'LEFT', der: 'RIGHT', a: 'A', d: 'D' }) : null;
+
+    tarjetaMensaje(this, 'El frasco de los recuerdos',
+      `Atrapa pétalos (+1) y estrellas fugaces (+2). Las sombras te quitan 2. Junta ${META_FRASCO} en 45 segundos.\n\n` +
+      (TACTIL ? 'Arrastra el frasco con el dedo.' : 'Mueve el frasco con el mouse o con ← →.'),
+      'Empezar', () => this.iniciar());
+  }
+
+  iniciar() {
+    this.objetos.forEach((o) => o.destroy());
+    this.objetos = [];
+    this.puntos = 0;
+    this.tiempo = TIEMPO_FRASCO;
+    this.proximo = 400;
+    this.estado = 'juego';
+    this.actualizarMarcadores();
+  }
+
+  actualizarMarcadores() {
+    this.txtPuntos.setText(`${this.puntos} / ${META_FRASCO}`);
+    this.txtTiempo.setText(String(Math.ceil(this.tiempo / 1000)));
+    const frac = Math.max(0, this.tiempo / TIEMPO_FRASCO);
+    const x = W / 2 + 26;
+    this.barraTiempo.clear();
+    this.barraTiempo.fillStyle(CREMA, 0.2).fillRoundedRect(x, 129, 98, 4, 2);
+    this.barraTiempo.fillStyle(frac < 0.25 ? 0xF2A7B5 : ORO, 1).fillRoundedRect(x, 129, Math.max(4, 98 * frac), 4, 2);
+  }
+
+  soltar(avance) {
+    const r = Math.random();
+    const tipo = r < 0.58 ? 'petalo' : r < 0.71 ? 'estrella' : 'sombra';
+    const clave = { petalo: 'petalo_g', estrella: 'fugaz', sombra: 'sombra' }[tipo];
+    const x = Phaser.Math.Between(this.zona.x0, this.zona.x1);
+    const o = this.add.image(x, -40, clave).setDepth(8);
+    o.tipo = tipo;
+    o.vel = (150 + 170 * avance) * Phaser.Math.FloatBetween(0.85, 1.15);
+    o.giro = tipo === 'petalo' ? Phaser.Math.FloatBetween(-2, 2) : 0;
+    o.vaiven = tipo === 'petalo' ? Phaser.Math.FloatBetween(0.6, 1.4) : 0;
+    o.x0 = x;
+    o.t = Math.random() * 6;
+    if (tipo === 'sombra') o.setScale(0.85);
+    if (tipo === 'petalo') o.setScale(1.3);
+    this.objetos.push(o);
+  }
+
+  update(time, delta) {
+    if (this.estado !== 'juego') return;
+    const dt = Math.min(delta, 50);
+    this.tiempo -= dt;
+    const avance = 1 - Math.max(0, this.tiempo) / TIEMPO_FRASCO;
+
+    this.proximo -= dt;
+    if (this.proximo <= 0) {
+      this.soltar(avance);
+      this.proximo = (1150 - 500 * avance) * Phaser.Math.FloatBetween(0.8, 1.2);
+    }
+
+    // Frasco: sigue al dedo/mouse o a las flechas
+    const k = this.teclas;
+    if (k) {
+      const dir = (k.der.isDown || k.d.isDown ? 1 : 0) - (k.izq.isDown || k.a.isDown ? 1 : 0);
+      if (dir) this.objetivoX = this.frasco.x + dir * 40;
+    }
+    this.objetivoX = Phaser.Math.Clamp(this.objetivoX, this.zona.x0, this.zona.x1);
+    this.frasco.x += (this.objetivoX - this.frasco.x) * Math.min(1, dt / 60);
+    this.frasco.setAngle((this.objetivoX - this.frasco.x) * 0.08);
+    this.brilloFrasco.x = this.frasco.x;
+
+    const boca = this.frasco.y - 46;
+    this.objetos = this.objetos.filter((o) => {
+      o.t += dt / 1000;
+      o.y += (o.vel * dt) / 1000;
+      if (o.vaiven) o.x = o.x0 + Math.sin(o.t * 2.2) * 18 * o.vaiven;
+      if (o.giro) o.angle += o.giro;
+      if (o.y > boca - 12 && o.y < boca + 26 && Math.abs(o.x - this.frasco.x) < 44) {
+        this.atrapar(o);
+        return false;
+      }
+      if (o.y > H + 40) { o.destroy(); return false; }
+      return true;
+    });
+
+    this.actualizarMarcadores();
+    if (this.puntos >= META_FRASCO) this.ganar();
+    else if (this.tiempo <= 0) this.perder();
+  }
+
+  atrapar(o) {
+    const valor = { petalo: 1, estrella: 2, sombra: -2 }[o.tipo];
+    this.puntos = Math.max(0, this.puntos + valor);
+    const x = this.frasco.x;
+    const y = this.frasco.y - 70;
+    const t = texto(this, x, y, valor > 0 ? `+${valor}` : String(valor), 24, valor > 0 ? hex(ORO) : '#B9A2FF',
+      { serif: true, peso: '700', sombra: '#000000' }).setDepth(20);
+    this.tweens.add({ targets: t, y: y - 40, alpha: 0, duration: 650, onComplete: () => t.destroy() });
+    if (valor > 0) {
+      Sonido.sfx(o.tipo === 'estrella' ? 'corazon' : 'recoger');
+      this.tweens.add({ targets: this.frasco, scaleY: 0.9, scaleX: 1.08, duration: 80, yoyo: true });
+      this.tweens.add({ targets: this.brilloFrasco, alpha: 0.9, duration: 120, yoyo: true });
+    } else {
+      Sonido.sfx('error');
+      this.cameras.main.shake(140, 0.005);
+    }
+    o.destroy();
+  }
+
+  ganar() {
+    this.estado = 'fin';
+    this.objetos.forEach((o) => this.tweens.add({ targets: o, alpha: 0, duration: 300, onComplete: () => o.destroy() }));
+    this.objetos = [];
+    ganarLlave(this, 0, this.frasco.x, this.frasco.y - 80, '¡Frasco lleno!');
+  }
+
+  perder() {
+    this.estado = 'pausa';
+    this.objetos.forEach((o) => o.destroy());
+    this.objetos = [];
+    tarjetaMensaje(this, '¡Casi!',
+      `Juntaste ${this.puntos} de ${META_FRASCO}. Los recuerdos no se van a ninguna parte: inténtalo otra vez.`,
+      'Otra vez', () => this.iniciar());
+  }
+}
+
+/* ---------- Minijuego 2 · Los naipes del farol (memoria) ---------- */
+const MAX_INTENTOS = 20;
+const ICONOS_PAREJA = ['corazon', 'llave', 'luz', 'pagina', 'cofre_mapa', 'faro_on'];
+const COLORES_PAREJA = [0xF2A7B5, 0xF5C26B, 0xB9A0E6, 0x9ACFB6, 0xF2C6A0, 0x9EC5F2];
+
+class Mini2 extends Phaser.Scene {
+  constructor() { super('Mini2'); }
+
+  create() {
+    entrar(this);
+    hud(this).mostrarLlaves(true);
+    this.estado = 'intro';
+    this.cartas = [];
+    fondoEtapa(this, 1);
+    particulasEtapa(this, 1).setDepth(5);
+
+    texto(this, W / 2, 112, 'Los naipes del farol', 28, hex(TINTA), { serif: true, peso: 'italic 700', sombra: '#FFF6E2', desenfoque: 10 }).setDepth(61);
+    this.txtIntentos = texto(this, W / 2, 146, '', 17, hex(TINTA), { peso: '700', sombra: '#FFF6E2', desenfoque: 8 }).setDepth(61);
+    botonCasa(this, () => this.estado !== 'fin');
+
+    tarjetaMensaje(this, 'Los naipes del farol',
+      `Encuentra las 6 parejas de fotos. Tienes ${MAX_INTENTOS} intentos: cada intento es voltear dos naipes.`,
+      'Empezar', () => this.iniciar());
+  }
+
+  iniciar() {
+    this.cartas.forEach((c) => c.destroy());
+    this.cartas = [];
+    this.intentos = 0;
+    this.pares = 0;
+    this.primera = null;
+    this.bloqueado = false;
+    this.estado = 'juego';
+    this.actualizarIntentos();
+
+    const cols = W >= 700 ? 4 : 3;
+    const filas = 12 / cols;
+    const hueco = 12;
+    const anchoDisp = Math.min(W - 40, 640);
+    const altoDisp = H - 60 - 176;
+    const cw = Math.floor(Math.min((anchoDisp - (cols - 1) * hueco) / cols, ((altoDisp - (filas - 1) * hueco) / filas) / 1.32));
+    const ch = Math.round(cw * 1.32);
+    const x0 = W / 2 - ((cols - 1) * (cw + hueco)) / 2;
+    const y0 = 176 + ch / 2 + (altoDisp - (filas * ch + (filas - 1) * hueco)) / 2;
+
+    const mazo = Phaser.Utils.Array.Shuffle([0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5]);
+    mazo.forEach((par, n) => {
+      const x = x0 + (n % cols) * (cw + hueco);
+      const y = y0 + Math.floor(n / cols) * (ch + hueco);
+      this.cartas.push(this.crearCarta(x, y, cw, ch, par, n));
+    });
+  }
+
+  crearCarta(x, y, cw, ch, par, n) {
+    const c = this.add.container(x, y).setDepth(10);
+    const dorso = this.add.image(0, 0, 'carta_dorso').setDisplaySize(cw, ch);
+    const frente = this.add.container(0, 0).setVisible(false);
+    frente.add(this.add.image(0, 0, 'carta_frente').setDisplaySize(cw, ch));
+    const ruta = CFG.memoria.fotos[par];
+    if (ruta && this.textures.exists('foto:' + ruta)) {
+      frente.add(foto(this, 0, 0, cw - 18, ch - 18, ruta));
+    } else {
+      // Sin foto: cada pareja tiene su propio color e ícono para poder jugar igual
+      const g = this.add.graphics();
+      g.fillStyle(COLORES_PAREJA[par], 0.85).fillRoundedRect(-cw / 2 + 9, -ch / 2 + 9, cw - 18, ch - 18, 6);
+      const icono = this.add.image(0, 0, ICONOS_PAREJA[par]);
+      icono.setScale(Math.min((cw * 0.55) / icono.width, (ch * 0.5) / icono.height));
+      frente.add([g, icono]);
+    }
+    c.add([dorso, frente]);
+    c.dorso = dorso;
+    c.frente = frente;
+    c.par = par;
+    c.boca = false;
+    c.hecha = false;
+    // Atajo de prueba: ?caras muestra los naipes boca arriba
+    if (new URLSearchParams(location.search).has('caras')) { dorso.setVisible(false); frente.setVisible(true); }
+    c.setSize(cw, ch).setInteractive({ useHandCursor: true });
+    c.on('pointerup', () => this.tocar(c));
+    c.on('pointerover', () => { if (!TACTIL && !c.boca) c.dorso.setTint(0xFFF1D6); });
+    c.on('pointerout', () => c.dorso.clearTint());
+    // Reparto con un pequeño vuelo
+    if (!SIN_FUNDIDO) {
+      c.setScale(0.2).setAlpha(0);
+      this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 300, delay: n * 45, ease: 'Back.easeOut' });
+    }
+    return c;
+  }
+
+  voltear(c, bocaArriba, alTerminar) {
+    c.boca = bocaArriba;
+    Sonido.sfx('tap');
+    this.tweens.add({
+      targets: c, scaleX: 0, duration: 110, ease: 'Sine.easeIn',
+      onComplete: () => {
+        c.dorso.setVisible(!bocaArriba);
+        c.frente.setVisible(bocaArriba);
+        this.tweens.add({ targets: c, scaleX: 1, duration: 110, ease: 'Sine.easeOut', onComplete: alTerminar });
+      },
+    });
+  }
+
+  actualizarIntentos() {
+    this.txtIntentos.setText(`Intentos: ${this.intentos} / ${MAX_INTENTOS}  ·  Parejas: ${this.pares} / 6`);
+  }
+
+  tocar(c) {
+    if (this.estado !== 'juego' || this.bloqueado || c.boca || c.hecha) return;
+    this.voltear(c, true);
+    if (!this.primera) {
+      this.primera = c;
+      return;
+    }
+    const a = this.primera;
+    this.primera = null;
+    this.bloqueado = true;
+    this.intentos++;
+    this.actualizarIntentos();
+    this.time.delayedCall(260, () => {
+      if (a.par === c.par) {
+        a.hecha = true;
+        c.hecha = true;
+        this.pares++;
+        this.actualizarIntentos();
+        Sonido.sfx('acierto');
+        [a, c].forEach((carta) => {
+          const brillo = this.add.image(carta.x, carta.y, 'brillo').setTint(ORO).setScale(0.5).setBlendMode('ADD').setDepth(9);
+          this.tweens.add({ targets: brillo, scale: 1.8, alpha: 0, duration: 600, onComplete: () => brillo.destroy() });
+          this.tweens.add({ targets: carta, scale: 1.08, duration: 140, yoyo: true });
+        });
+        this.bloqueado = false;
+        if (this.pares === 6) this.ganar();
+        else if (this.intentos >= MAX_INTENTOS) this.perder();
+      } else {
+        Sonido.sfx('error');
+        this.tweens.add({ targets: [a, c], angle: { from: -4, to: 4 }, duration: 60, yoyo: true, repeat: 2, onComplete: () => { a.setAngle(0); c.setAngle(0); } });
+        this.time.delayedCall(650, () => {
+          this.voltear(a, false);
+          this.voltear(c, false, () => {
+            this.bloqueado = false;
+            if (this.intentos >= MAX_INTENTOS) this.perder();
+          });
+        });
+      }
+    });
+  }
+
+  ganar() {
+    this.estado = 'fin';
+    ganarLlave(this, 1, W / 2, 470, '¡Todas las parejas!');
+  }
+
+  perder() {
+    this.estado = 'pausa';
+    tarjetaMensaje(this, '¡Casi!',
+      `Encontraste ${this.pares} de 6 parejas. Se acabaron los intentos, pero no los recuerdos: volvamos a barajar.`,
+      'Otra vez', () => this.iniciar());
   }
 }
 
@@ -1498,6 +1941,7 @@ window.juego = new Phaser.Game({
   scene: [
     Boot, Intro, Mapa,
     new Nivel(0), new Nivel(1), new Nivel(2), new Nivel(3),
+    Mini1, Mini2,
     CofrePendiente, HUD,
   ],
 });

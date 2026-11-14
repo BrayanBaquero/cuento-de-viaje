@@ -866,6 +866,45 @@ const Arte = (() => {
     return doc(64, 20, `<path d="M2,3 L62,1 L60,18 L4,19 Z" fill="#F3E6C8" opacity=".75" stroke="#C9B28A" stroke-width=".8"/>`);
   }
 
+  /* ---------- Minijuego 1: frasco de los recuerdos ---------- */
+  function frasco() {
+    const s = `<ellipse cx="50" cy="70" rx="46" ry="40" fill="url(#glowGold)" opacity=".55"/>` +
+      `<rect x="20" y="4" width="60" height="12" rx="4" fill="#9C6B3E" stroke="${INK}" stroke-width="2"/>` +
+      `<path d="M10,34 Q10,22 22,20 L78,20 Q90,22 90,34 L90,92 Q90,108 74,108 L26,108 Q10,108 10,92 Z" fill="#FFFFFF" fill-opacity=".16" stroke="${INK}" stroke-width="2.5"/>` +
+      `<ellipse cx="50" cy="21" rx="32" ry="5" fill="#FFFFFF" fill-opacity=".25" stroke="${INK}" stroke-width="2"/>` +
+      `<path d="M18,40 Q16,70 22,96" stroke="#FFFFFF" stroke-width="3" opacity=".55" fill="none" stroke-linecap="round"/>` +
+      `<path d="M78,44 Q81,60 79,74" stroke="#FFFFFF" stroke-width="2" opacity=".35" fill="none" stroke-linecap="round"/>` +
+      `<path d="M14,56 Q50,64 86,56" stroke="${INK}" stroke-width="1" opacity=".25" fill="none"/>` +
+      `<circle cx="50" cy="84" r="14" fill="url(#glowGold)"/>`;
+    return doc(100, 112, s);
+  }
+
+  function petaloGrande() {
+    return doc(30, 24, `<circle cx="15" cy="12" r="12" fill="url(#glowCream)" opacity=".6"/><path d="M4,13 C6,4 18,1 26,6 C22,16 12,21 4,13 Z" fill="#F7B7C3" stroke="#9B3651" stroke-width="1.2"/><path d="M7,12 C12,9 18,8 23,7" stroke="#FFFFFF" stroke-width="1" opacity=".6" fill="none"/>`);
+  }
+
+  function fugaz() {
+    return doc(30, 70, `<path d="M15,2 L19,50 L11,50 Z" fill="url(#cola)"/><circle cx="15" cy="54" r="14" fill="url(#glowGold)"/>${estrella4(15, 54, 9, '#FFF6DE')}<circle cx="15" cy="54" r="2.4" fill="#FFFFFF"/>`,
+      lg('cola', [[0, '#FFE7A8', 0], [1, '#FFE7A8', 0.9]]));
+  }
+
+  /* ---------- Minijuego 2: naipes del farol ---------- */
+  function cartaDorso() {
+    let s = `<rect x="3" y="3" width="114" height="154" rx="10" fill="url(#dorso)" stroke="${INK}" stroke-width="2.5"/>`;
+    s += `<rect x="11" y="11" width="98" height="138" rx="6" fill="none" stroke="#F5C26B" stroke-width="1.6" opacity=".9"/>`;
+    s += `<rect x="16" y="16" width="88" height="128" rx="4" fill="none" stroke="#F5C26B" stroke-width=".7" opacity=".6"/>`;
+    s += `<circle cx="60" cy="80" r="34" fill="url(#glowGold)" opacity=".8"/>`;
+    s += `<path d="M48,62 L60,54 L72,62 Z" fill="#F5C26B" stroke="${INK}" stroke-width="1.4"/><rect x="50" y="62" width="20" height="26" rx="3" fill="#FFD27A" stroke="${INK}" stroke-width="1.6"/><path d="M60,62 V88 M50,75 H70" stroke="${INK}" stroke-width="1" opacity=".5"/><circle cx="60" cy="75" r="4" fill="#FFF6DE"/><path d="M60,54 V48" stroke="${INK}" stroke-width="1.6"/><circle cx="60" cy="46" r="2.5" fill="none" stroke="${INK}" stroke-width="1.4"/>`;
+    [[24, 26], [96, 26], [24, 134], [96, 134]].forEach(([x, y]) => { s += estrella4(x, y, 5, '#F5C26B'); });
+    return doc(120, 160, s, lg('dorso', [[0, '#3E2F5B'], [1, '#1E1630']]));
+  }
+
+  function cartaFrente() {
+    let s = `<rect x="3" y="3" width="114" height="154" rx="10" fill="#FBF3E2" stroke="${INK}" stroke-width="2.5"/>`;
+    s += `<rect x="9" y="9" width="102" height="142" rx="6" fill="none" stroke="#D9A23E" stroke-width="1.2" opacity=".8"/>`;
+    return doc(120, 160, s);
+  }
+
   // Texturas propias de una etapa: se crean al entrar al nivel y se liberan al salir
   function nivelArte(i, def) {
     const c = capas(i);
@@ -916,6 +955,11 @@ const Arte = (() => {
       losa_3: losa(3),
       pagina_diario: paginaDiario(),
       cinta: cinta(),
+      frasco: frasco(),
+      petalo_g: petaloGrande(),
+      fugaz: fugaz(),
+      carta_dorso: cartaDorso(),
+      carta_frente: cartaFrente(),
     };
   }
 
