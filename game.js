@@ -3,7 +3,8 @@
  *  Fase 1 (rediseño): estilo "cuento de viaje pintado a tinta",
  *  Angie nueva con animaciones, Intro y Mapa nuevos, HUD y controles
  *  nuevos, y soporte para celular (vertical) y PC (horizontal + teclado).
- *  Los niveles conservan su escenario anterior hasta las fases 2 y 3.
+ *  Niveles ilustrados por capas (paralaje, niebla, terreno orgánico) con
+ *  zarzas, sombras del olvido, faroles y páginas de diario.
  * ===================================================================== */
 'use strict';
 
@@ -61,7 +62,7 @@ window.addEventListener('resize', () => {
 /* Paletas de los niveles (se rediseñan en las fases 2 y 3) */
 const PALETAS = [
   { fondo: 0xFFD6C2, medio: 0xFF9E80, acento: 0xF2637E, oscuro: 0x7A3E65, particula: 'petalo' },
-  { fondo: 0xE8DFF5, medio: 0xB8A1E3, acento: 0x7D5BA6, oscuro: 0x3E2F5B, particula: 'burbuja' },
+  { fondo: 0xE8DFF5, medio: 0xB8A1E3, acento: 0x7D5BA6, oscuro: 0x3E2F5B, particula: 'mota' },
   { fondo: 0xDFF5EA, medio: 0x8FD9B6, acento: 0x3FA37C, oscuro: 0x1F4F45, particula: 'luciernaga' },
   { fondo: 0x1B1F3B, medio: 0x3A3F7A, acento: 0xF5C26B, oscuro: 0xFFF1D6, particula: 'estrella' },
 ];
@@ -259,10 +260,11 @@ function fondoDegradado(escena, anclas) {
 }
 
 // Todas las escenas entran con fundido.
+const SIN_FUNDIDO = new URLSearchParams(location.search).has('captura'); // para capturas de prueba
 function entrar(escena) {
   escena._saliendo = false;
   escena.input.enabled = true;
-  escena.cameras.main.fadeIn(FUNDIDO, ...COLOR_FUNDIDO);
+  if (!SIN_FUNDIDO) escena.cameras.main.fadeIn(FUNDIDO, ...COLOR_FUNDIDO);
 }
 
 // Cambia de escena con fundido de salida (ignora toques repetidos).
@@ -320,7 +322,7 @@ function foto(escena, x, y, w, h, ruta, paleta = PALETAS[0]) {
   return c;
 }
 
-// Partículas sutiles (pétalos, burbujas, luciérnagas, estrellas).
+// Partículas sutiles (pétalos, chispas de farol, luciérnagas, estrellas).
 function particulasEtapa(escena, i) {
   const brilloSuave = (p, k, t) => Math.sin(t * Math.PI);
   const cfg = [
@@ -439,11 +441,6 @@ function generarTexturas(escena) {
     g.fillStyle(0xFF9EB0, 1).fillEllipse(8, 6, 14, 9);
     g.fillStyle(0xFFFFFF, 0.5).fillEllipse(6, 5, 5, 3);
   });
-  hacer('burbuja', 20, 20, (g) => {
-    g.fillStyle(0xFFFFFF, 0.18).fillCircle(10, 10, 8);
-    g.lineStyle(2, 0xFFFFFF, 0.9).strokeCircle(10, 10, 8);
-    g.fillStyle(0xFFFFFF, 0.9).fillCircle(7, 7, 2);
-  });
   hacer('luciernaga', 20, 20, (g) => {
     for (let r = 10; r > 2; r -= 2) g.fillStyle(0xF3FF9A, 0.18).fillCircle(10, 10, r);
     g.fillStyle(0xFFFFE0, 1).fillCircle(10, 10, 2.5);
@@ -452,83 +449,8 @@ function generarTexturas(escena) {
     g.fillStyle(TESORO.crema, 1).fillPoints(puntosEstrella(10, 10, 5, 9, 4), true);
   });
 
-  // --- Piezas de los niveles (se reemplazan en las fases 2 y 3) ---
-  PALETAS.forEach((p, i) => {
-    const borde = i === 3 ? 0x0E1024 : p.oscuro;
-    const tierra = Phaser.Display.Color.IntegerToColor(p.medio).darken(i === 3 ? 4 : 16).color;
-    hacer('tiles_' + i, 120, 40, (g) => {
-      g.fillStyle(tierra, 1).fillRect(0, 0, 40, 40);
-      g.fillStyle(p.acento, 1).fillRect(0, 0, 40, 10);
-      g.fillCircle(7, 10, 5).fillCircle(21, 11, 5).fillCircle(35, 10, 5);
-      g.fillStyle(0xFFFFFF, 0.28).fillRect(0, 3, 40, 3);
-      g.lineStyle(3, borde, 1).lineBetween(0, 1.5, 40, 1.5);
-      g.fillStyle(0x000000, 0.08).fillCircle(12, 27, 3).fillCircle(29, 33, 2.5);
-      g.fillStyle(tierra, 1).fillRect(40, 0, 40, 40);
-      g.fillStyle(0x000000, 0.08).fillCircle(52, 10, 3).fillCircle(70, 24, 2.5).fillCircle(47, 33, 2);
-      g.fillStyle(p.acento, 1).fillRoundedRect(81, 1, 38, 16, 6);
-      g.fillStyle(0xFFFFFF, 0.3).fillRoundedRect(85, 4, 30, 4, 2);
-      g.lineStyle(2.5, borde, 1).strokeRoundedRect(81, 1.5, 38, 15, 6);
-    });
-    hacer('plat_' + i, 80, 20, (g) => {
-      g.fillStyle(TESORO.crema, 1).fillRoundedRect(1, 1, 78, 17, 8);
-      g.fillStyle(p.acento, 0.8).fillCircle(20, 9.5, 3).fillCircle(40, 9.5, 3).fillCircle(60, 9.5, 3);
-      g.lineStyle(2.5, borde, 1).strokeRoundedRect(1.5, 1.5, 77, 16, 8);
-    });
-  });
-
-  hacer('nubarron', 60, 44, (g) => {
-    const bolas = [[18, 26, 13], [32, 19, 16], [46, 27, 12]];
-    g.fillStyle(TINTA, 1);
-    bolas.forEach(([x, y, r]) => g.fillCircle(x, y, r + 2.5));
-    g.fillRoundedRect(5.5, 21.5, 51, 21, 10);
-    g.fillStyle(0xB3AEC4, 1);
-    bolas.forEach(([x, y, r]) => g.fillCircle(x, y, r));
-    g.fillRoundedRect(8, 24, 46, 16, 8);
-    g.fillStyle(0xFFFFFF, 0.35).fillEllipse(28, 12, 14, 6);
-    g.fillStyle(TINTA, 1).fillEllipse(24, 28, 5, 7).fillEllipse(38, 28, 5, 7);
-    g.lineStyle(2, TINTA, 1).lineBetween(19, 21, 27, 24).lineBetween(43, 21, 35, 24);
-    g.beginPath();
-    g.arc(31, 37, 4, Phaser.Math.DegToRad(200), Phaser.Math.DegToRad(340), false);
-    g.strokePath();
-  });
-
-  hacer('espinas', 40, 40, (g) => {
-    [[2, 10, 18, 18], [12, 20, 28, 10], [22, 30, 38, 18]].forEach(([a, m, b, alto]) => {
-      g.fillStyle(0x8C7FA3, 1).fillTriangle(a, 40, m, alto, b, 40);
-      g.lineStyle(2.5, TINTA, 1).strokeTriangle(a, 40, m, alto, b, 40);
-    });
-  });
-
-  const bandera = (g, activa) => {
-    g.fillStyle(0x6E6580, 1).fillRoundedRect(7, 6, 5, 74, 2);
-    g.lineStyle(2, TINTA, 1).strokeRoundedRect(7, 6, 5, 74, 2);
-    const pts = puntosCorazon(26, 18, 26);
-    g.fillStyle(activa ? TESORO.rosa : 0xCFC8D6, 1).fillPoints(pts, true);
-    g.lineStyle(2.5, TINTA, 1).strokePoints(pts, true);
-    g.fillStyle(TINTA, 1).fillCircle(9.5, 6, 4);
-  };
-  hacer('bandera', 42, 80, (g) => bandera(g, false));
-  hacer('bandera_on', 42, 80, (g) => bandera(g, true));
-
-  hacer('recuerdo', 36, 42, (g) => {
-    g.fillStyle(0xFFFFFF, 1).fillRoundedRect(2, 2, 32, 38, 4);
-    g.lineStyle(2.5, TINTA, 1).strokeRoundedRect(2, 2, 32, 38, 4);
-    g.fillStyle(0xFFD6C2, 1).fillRect(7, 7, 22, 21);
-    g.fillStyle(TESORO.rosa, 1).fillPoints(puntosCorazon(18, 18, 13), true);
-  });
-
-  hacer('cofre', 120, 100, (g) => {
-    const linea = 0x4A2A14;
-    g.lineStyle(3, linea, 1);
-    g.fillStyle(0x9C5B2E, 1).fillRoundedRect(10, 46, 100, 50, 10).strokeRoundedRect(10, 46, 100, 50, 10);
-    g.fillStyle(0xB86B35, 1).fillRoundedRect(8, 18, 104, 34, { tl: 26, tr: 26, bl: 6, br: 6 });
-    g.strokeRoundedRect(8, 18, 104, 34, { tl: 26, tr: 26, bl: 6, br: 6 });
-    g.fillStyle(TESORO.oro, 1);
-    g.fillRect(24, 20, 10, 75).strokeRect(24, 20, 10, 75);
-    g.fillRect(86, 20, 10, 75).strokeRect(86, 20, 10, 75);
-    g.fillRoundedRect(48, 38, 24, 28, 5).strokeRoundedRect(48, 38, 24, 28, 5);
-    g.fillStyle(linea, 1).fillCircle(60, 49, 3.5).fillRect(58.5, 49, 3, 9);
-  });
+  // Cuadrícula de colisión de los niveles (invisible: el terreno se ve ilustrado)
+  hacer("tiles", 120, 40, (g) => g.fillStyle(0xFFFFFF, 1).fillRect(0, 0, 120, 40));
 }
 
 function crearAnimaciones(escena) {
@@ -620,7 +542,11 @@ class Boot extends Phaser.Scene {
       crearAnimaciones(this);
       this.scene.launch('HUD');
       this.scene.bringToTop('HUD');
-      this.scene.start('Intro');
+      // Atajo de prueba: ?etapa=1..4 o ?escena=Mapa abre esa escena directamente
+      const q = new URLSearchParams(location.search);
+      const etapa = parseInt(q.get('etapa'), 10);
+      const destino = etapa >= 1 && etapa <= 4 ? 'Etapa' + etapa : ['Mapa', 'Cofre'].includes(q.get('escena')) ? q.get('escena') : 'Intro';
+      this.scene.start(destino);
     });
   }
 }
@@ -969,8 +895,8 @@ class Mapa extends Phaser.Scene {
  *    bloques:     [col, filaSuperior, ancho]  muros sólidos hasta el suelo
  *    plataformas: [col, fila, ancho]  plataformas que se atraviesan desde abajo
  *    moviles:     [col, fila, rango]  plataforma que va y viene `rango` columnas
- *    obj: S inicio · m recuerdo · h corazón · x espinas · e nubarrón
- *         f bandera de control · c cofre (meta)
+ *    obj: S inicio · m página del diario (recuerdo) · h luz · x zarza
+ *         e sombra del olvido · f farol de piedra (control) · c cofre (meta)
  *  Salto máximo ≈ 3,5 filas de alto y 4,5 columnas de largo.
  * ===================================================================== */
 const TILE = 40;
@@ -1012,11 +938,11 @@ const NIVELES = [
   },
   { // 4 · Nuestro futuro — el reto final (sin pasarse)
     ancho: 84,
-    suelo: [[0, 10], [13, 22], [26, 30], [34, 46], [52, 60], [68, 84]],
-    bloques: [[55, 13, 2], [57, 12, 2]],
+    suelo: [[0, 10], [13, 22], [26, 30], [34, 46], [52, 61], [68, 84]],
+    bloques: [[54, 13, 2], [56, 12, 2]],
     plataformas: [[4, 12, 3], [15, 12, 2], [18, 9, 3], [23, 13, 2], [31, 12, 2], [38, 12, 3],
       [42, 9, 3], [71, 12, 3], [75, 9, 3]],
-    moviles: [[47, 14, 3], [61, 14, 5]],
+    moviles: [[47, 14, 3], [62, 14, 4]],
     obj: [['S', 2, 14], ['h', 5, 11], ['h', 6, 11], ['m', 8, 14], ['e', 17, 14], ['h', 19, 8],
       ['h', 20, 8], ['m', 36, 14], ['e', 40, 14], ['h', 43, 8], ['h', 44, 8],
       ['f', 45, 14], ['f', 52, 14], ['m', 59, 14], ['e', 72, 14], ['h', 72, 11],
@@ -1036,10 +962,11 @@ class Nivel extends Phaser.Scene {
     entrar(this);
     hud(this).mostrarLlaves(true);
     const i = this.i;
-    const p = PALETAS[i];
     const def = NIVELES[i];
     const anchoPx = def.ancho * TILE;
+    this.anchoPx = anchoPx;
 
+    this.listo = false;
     this.pausa = false;
     this.ganado = false;
     this.cayendo = false;
@@ -1054,37 +981,30 @@ class Nivel extends Phaser.Scene {
     this.estado = '';
     this.recogidos = 0;
 
-    this.decorarFondo(p, i, anchoPx);
-
-    // --- Mapa de tiles ---
+    // --- Colisiones: cuadrícula invisible (el dibujo lo pone el terreno ilustrado) ---
     const datos = Array.from({ length: FILAS }, () => Array(def.ancho).fill(-1));
     const solido = (c, r) => { if (c >= 0 && c < def.ancho && r >= 0 && r < FILAS) datos[r][c] = 1; };
     def.suelo.forEach(([a, b]) => { for (let c = a; c < b; c++) { solido(c, 15); solido(c, 16); } });
     def.bloques.forEach(([c0, r0, w]) => {
       for (let c = c0; c < c0 + w; c++) for (let r = r0; r < 15; r++) solido(c, r);
     });
-    for (let r = FILAS - 1; r >= 0; r--) {
-      for (let c = 0; c < def.ancho; c++) {
-        if (datos[r][c] === 1 && (r === 0 || datos[r - 1][c] !== 1)) datos[r][c] = 0;
-      }
-    }
     def.plataformas.forEach(([c0, r, w]) => {
       for (let c = c0; c < c0 + w; c++) if (datos[r][c] === -1) datos[r][c] = 2;
     });
     const mapa = this.make.tilemap({ data: datos, tileWidth: TILE, tileHeight: TILE });
-    const tileset = mapa.addTilesetImage('tiles_' + i, 'tiles_' + i, TILE, TILE, 0, 0);
-    this.capa = mapa.createLayer(0, tileset, 0, 0);
-    this.capa.setCollision([0, 1, 2]);
+    const tileset = mapa.addTilesetImage('tiles', 'tiles', TILE, TILE, 0, 0);
+    this.capa = mapa.createLayer(0, tileset, 0, 0).setVisible(false);
+    this.capa.setCollision([1, 2]);
     this.capa.forEachTile((t) => { if (t.index === 2) t.setCollision(false, false, true, false); });
 
     // --- Objetos ---
     const quietos = { allowGravity: false, immovable: true };
-    this.corazones = this.physics.add.group(quietos);
+    this.luces = this.physics.add.group(quietos);
     this.recuerdos = this.physics.add.group(quietos);
-    this.espinas = this.physics.add.group(quietos);
-    this.banderas = this.physics.add.group(quietos);
+    this.zarzas = this.physics.add.group(quietos);
+    this.faroles = this.physics.add.group(quietos);
     this.moviles = this.physics.add.group(quietos);
-    this.enemigos = this.physics.add.group();
+    this.sombras = this.physics.add.group({ allowGravity: false });
 
     let inicio = { x: 80, y: 600 };
     def.obj.forEach(([tipo, c, r]) => {
@@ -1093,42 +1013,42 @@ class Nivel extends Phaser.Scene {
       if (tipo === 'S') {
         inicio = { x, y };
       } else if (tipo === 'h') {
-        const h = this.corazones.create(x, y - 20, 'corazon').setScale(0.6).setDepth(15);
-        this.tweens.add({ targets: h, scale: 0.68, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        const l = this.luces.create(x, y - 24, 'luz').setDepth(15).setBlendMode('ADD');
+        this.tweens.add({ targets: l, y: y - 30, scale: 1.15, duration: 900 + Math.random() * 300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       } else if (tipo === 'm') {
-        const brillo = this.add.image(x, y - 26, 'brillo').setTint(TESORO.oro).setScale(0.9).setDepth(14);
-        const m = this.recuerdos.create(x, y - 26, 'recuerdo').setDepth(15);
-        m.body.setSize(36, 220, false).setOffset(0, -170); // se toma aunque pase saltando
-        m.brillo = brillo;
-        this.tweens.add({ targets: [m, brillo], y: y - 34, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-        this.tweens.add({ targets: m, angle: { from: -6, to: 6 }, duration: 1100, yoyo: true, repeat: -1 });
+        const m = this.recuerdos.create(x, y - 30, 'pagina').setDepth(15);
+        m.body.setSize(30, 220, false).setOffset(7, -170); // se toma aunque pase saltando
+        this.tweens.add({ targets: m, y: y - 38, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        this.tweens.add({ targets: m, angle: { from: -7, to: 7 }, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       } else if (tipo === 'x') {
-        const s = this.espinas.create(x, y - 20, 'espinas').setDepth(15);
-        s.body.setSize(30, 18).setOffset(5, 22);
+        const z = this.zarzas.create(x, y - 18, 'zarza').setDepth(15);
+        z.body.setSize(44, 20).setOffset(10, 18);
       } else if (tipo === 'e') {
-        const e = this.enemigos.create(x, y - 24, 'nubarron').setDepth(16);
-        e.body.setSize(46, 30).setOffset(7, 12);
+        const e = this.sombras.create(x, y - 34, 'sombra').setDepth(16);
+        e.body.setSize(32, 30).setOffset(19, 10);
+        e.base = { x, y: y - 34 };
         e.dir = -1;
+        e.fase = Math.random() * 6;
       } else if (tipo === 'f') {
-        const f = this.banderas.create(x, y - 40, 'bandera').setDepth(14);
-        // Zona alta: se activa aunque ella pase saltando por encima
-        f.body.setSize(40, 260, false).setOffset(1, -180);
+        const f = this.faroles.create(x, y - 46, 'faro').setDepth(14);
+        // Zona alta: se enciende aunque ella pase saltando por encima
+        f.body.setSize(40, 280, false).setOffset(-2, -188);
       } else if (tipo === 'c') {
-        this.cofre = this.physics.add.image(x, y - 35, 'cofre').setScale(0.7).setDepth(15);
+        this.brilloCofre = this.add.image(x, y - 38, 'brillo').setTint(ORO).setScale(1.8).setBlendMode('ADD').setDepth(14).setAlpha(0.75);
+        this.tweens.add({ targets: this.brilloCofre, scale: 2.3, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        this.cofre = this.physics.add.image(x, y - 38, 'cofre_nivel').setDepth(15);
         this.cofre.body.allowGravity = false;
         // Zona alta: cuenta aunque llegue cayendo desde una plataforma
-        this.cofre.body.setSize(100, 420, false).setOffset(10, -320);
+        this.cofre.body.setSize(100, 420, false).setOffset(0, -344);
         this.cofre.setImmovable(true);
-        this.brilloCofre = this.add.image(x, y - 35, 'brillo').setTint(TESORO.oro).setScale(1.6)
-          .setBlendMode('ADD').setDepth(14).setAlpha(0.7);
-        this.tweens.add({ targets: this.brilloCofre, scale: 2, duration: 900, yoyo: true, repeat: -1 });
       }
     });
     // Los recuerdos se muestran en el orden en que aparecen en el camino
     this.recuerdos.getChildren().sort((a, b) => a.x - b.x).forEach((m, k) => { m.idx = k; });
 
     def.moviles.forEach(([c, r, rango]) => {
-      const m = this.moviles.create(c * TILE + TILE, r * TILE + 10, 'plat_' + i).setDepth(13);
+      const m = this.moviles.create(c * TILE + TILE, r * TILE + 13, 'losa_' + i).setDepth(13);
+      m.body.setSize(80, 18).setOffset(0, 0);
       m.body.checkCollision.down = false;
       m.body.checkCollision.left = false;
       m.body.checkCollision.right = false;
@@ -1147,12 +1067,11 @@ class Nivel extends Phaser.Scene {
     this.physics.world.setBoundsCollision(true, true, false, false);
     this.physics.add.collider(this.jug, this.capa);
     this.physics.add.collider(this.jug, this.moviles);
-    this.physics.add.collider(this.enemigos, this.capa);
-    this.physics.add.overlap(this.jug, this.enemigos, (j, e) => this.tocarEnemigo(e));
-    this.physics.add.overlap(this.jug, this.espinas, (j, s) => this.herir(s.x));
-    this.physics.add.overlap(this.jug, this.corazones, (j, h) => this.tomarCorazon(h));
+    this.physics.add.overlap(this.jug, this.sombras, (j, e) => this.herir(e.x));
+    this.physics.add.overlap(this.jug, this.zarzas, (j, z) => this.herir(z.x));
+    this.physics.add.overlap(this.jug, this.luces, (j, l) => this.tomarLuz(l));
     this.physics.add.overlap(this.jug, this.recuerdos, (j, m) => this.tomarRecuerdo(m));
-    this.physics.add.overlap(this.jug, this.banderas, (j, f) => this.activarBandera(f));
+    this.physics.add.overlap(this.jug, this.faroles, (j, f) => this.encenderFarol(f));
     if (this.cofre) this.physics.add.overlap(this.jug, this.cofre, () => this.llegarCofre());
 
     const cam = this.cameras.main;
@@ -1164,74 +1083,64 @@ class Nivel extends Phaser.Scene {
       speedX: { min: -60, max: 60 }, speedY: { min: -30, max: -5 }, lifespan: 380,
       scale: { start: 1, end: 0.2 }, alpha: { start: 0.8, end: 0 }, emitting: false,
     }).setDepth(19);
+    particulasEtapa(this, i).setScrollFactor(0).setDepth(30);
 
-    this.crearControles(p, i);
+    this.crearControles();
     this.crearInterfaz();
     this.crearTeclado();
-    this.cartelInicial(p, i);
+    this.cartelInicial(i);
+
+    // --- Escenario ilustrado: se dibuja al entrar y se libera al salir ---
+    this.physics.pause();
+    const sesion = (this.sesion = (this.sesion || 0) + 1);
+    const piezas = Object.entries(Arte.nivelArte(i, def));
+    Promise.all(piezas.map(([clave, arte]) => {
+      if (this.textures.exists(clave)) this.textures.remove(clave);
+      return svgATextura(this, clave, arte);
+    })).then(() => {
+      if (sesion !== this.sesion || !this.sys.isActive()) return;
+      this.pintarEscenario(i);
+      this.physics.resume();
+      this.listo = true;
+      // Atajo de prueba: ?diario muestra la primera página del diario
+      if (new URLSearchParams(location.search).has('diario')) this.mostrarRecuerdo(0);
+    });
   }
 
-  /* ---------- Escenario (provisional: se rediseña en las fases 2 y 3) ---------- */
-  decorarFondo(p, i, anchoPx) {
-    const cielo = i === 3 ? [[0, 0x10132B], [CONTROLES_Y, p.medio]]
-      : [[0, p.fondo], [380, p.fondo], [CONTROLES_Y, p.medio]];
-    fondoDegradado(this, cielo).setScrollFactor(0);
+  /* ---------- Escenario por capas ---------- */
+  pintarEscenario(i) {
+    fondoDegradado(this, Arte.CIELOS[i]).setScrollFactor(0).setDepth(-10);
+    const astro = [[0.72, 300], [0.25, 300], [0.7, 360], [0.78, 150]][i];
+    this.add.image(W * astro[0], astro[1], 'n_astro').setScrollFactor(0.02).setDepth(-9);
 
-    const lejos = this.add.graphics().setScrollFactor(0.05);
-    if (i === 0) {
-      lejos.fillStyle(0xFFFFFF, 0.35).fillCircle(290, 230, 95);
-      lejos.fillStyle(0xFFF4D6, 0.9).fillCircle(290, 230, 62);
-    } else if (i === 1) {
-      lejos.fillStyle(0xFFFFFF, 0.3).fillCircle(110, 210, 100);
-      lejos.fillStyle(0xFFE7F0, 0.6).fillCircle(110, 210, 64);
-    } else if (i === 3) {
-      lejos.fillStyle(TESORO.crema, 1).fillCircle(300, 170, 40);
-      lejos.fillStyle(0x10132B, 1).fillCircle(318, 158, 36);
-    }
-    const alcance = (fac) => (anchoPx - W) * fac + W + 200;
-
-    if (i === 3) {
-      const est = this.add.graphics().setScrollFactor(0.1);
-      for (let k = 0; k < 70 * Math.ceil(W / 390); k++) {
-        est.fillStyle(TESORO.crema, Phaser.Math.FloatBetween(0.3, 0.9))
-          .fillCircle(Phaser.Math.Between(0, alcance(0.1)), Phaser.Math.Between(90, 420), Phaser.Math.FloatBetween(0.8, 2));
+    // Mosaicos de paralaje: se repiten hasta cubrir todo el recorrido de la cámara
+    const capa = (clave, factor, prof) => {
+      const ancho = this.textures.get(clave).getSourceImage().width;
+      const necesario = (this.anchoPx - W) * factor + W;
+      for (let x = 0; x < necesario + ancho; x += ancho) {
+        this.add.image(x, 0, clave).setOrigin(0).setScrollFactor(factor).setDepth(prof);
       }
+    };
+    capa('n_lejos', 0.12, -8);
+    capa('n_medio', 0.3, -7);
+    capa('n_campo', 0.55, -6);
+    this.add.image(0, Arte.TERRENO_Y, 'n_terreno').setOrigin(0).setDepth(-5);
+
+    // Primer plano oscuro (hierba y ramas) que pasa más rápido que la cámara
+    const factor = 1.25;
+    const fin = this.anchoPx * factor + W;
+    let k = 0;
+    for (let x = 260; x < fin; x += 520 + (k % 3) * 90, k++) {
+      this.add.image(x, H + 50, 'mata').setOrigin(0.5, 1).setScale(0.75 + (k % 2) * 0.2).setFlipX(k % 2 === 1)
+        .setScrollFactor(factor).setDepth(35);
     }
-
-    const colinas = this.add.graphics().setScrollFactor(0.3);
-    colinas.fillStyle(i === 3 ? 0x2A2F5E : p.medio, i === 3 ? 1 : 0.5);
-    for (let x = 0; x < alcance(0.3); x += 190) colinas.fillEllipse(x, 650, 280, 260 + (x % 3) * 30);
-
-    const cerca = this.add.graphics().setScrollFactor(0.6);
-    if (i === 2) {
-      const pino = Phaser.Display.Color.IntegerToColor(p.acento).darken(12).color;
-      for (let x = 40; x < alcance(0.6); x += 130) {
-        const alto = 150 + (x % 4) * 25;
-        cerca.fillStyle(pino, 0.55).fillTriangle(x - 45, 640, x, 640 - alto, x + 45, 640);
-      }
-    } else if (i === 3) {
-      cerca.fillStyle(0x23285A, 1);
-      for (let x = 0; x < alcance(0.6); x += 240) cerca.fillEllipse(x, 680, 300, 200);
-    } else {
-      cerca.fillStyle(0xFFFFFF, 0.7);
-      for (let x = 60; x < alcance(0.6); x += 320) {
-        const y = 170 + (x % 5) * 28;
-        cerca.fillEllipse(x, y, 90, 34).fillEllipse(x + 30, y - 12, 60, 34).fillEllipse(x - 28, y - 6, 50, 26);
-      }
-    }
-
-    particulasEtapa(this, i).setScrollFactor(0).setDepth(30);
+    this.add.image(W / 2, H / 2, 'vineta').setDisplaySize(W, H).setScrollFactor(0).setDepth(36);
   }
 
   // Botones translúcidos de tinta (solo en pantallas táctiles)
-  crearControles(p, i) {
-    const tierra = this.add.graphics().setScrollFactor(0).setDepth(40);
-    tierra.fillStyle(Phaser.Display.Color.IntegerToColor(p.medio).darken(i === 3 ? 10 : 34).color, 1)
-      .fillRect(0, CONTROLES_Y, W, H - CONTROLES_Y);
-    tierra.fillStyle(0x000000, 0.15).fillRect(0, CONTROLES_Y, W, 6);
+  crearControles() {
     this.botones = null;
     if (!TACTIL) return;
-
     const crear = (x, y, r, dibujo) => {
       const c = this.add.container(x, y).setScrollFactor(0).setDepth(41);
       const g = this.add.graphics();
@@ -1262,11 +1171,11 @@ class Nivel extends Phaser.Scene {
     const zona = this.add.zone(34, 42, 56, 56).setScrollFactor(0).setInteractive({ useHandCursor: true });
     zona.on('pointerup', () => this.volverAlMapa());
 
-    // Contador de recuerdos
+    // Contador de páginas del diario
     const fondo = this.add.graphics().setScrollFactor(0).setDepth(60);
     fondo.fillStyle(0x140C12, 0.4).fillRoundedRect(12, 76, 86, 32, 16);
     fondo.lineStyle(1.5, CREMA, 0.7).strokeRoundedRect(12, 76, 86, 32, 16);
-    this.add.image(32, 92, 'recuerdo').setScale(0.55).setScrollFactor(0).setDepth(61);
+    this.add.image(32, 92, 'pagina').setScale(0.55).setScrollFactor(0).setDepth(61);
     this.contador = texto(this, 50, 92, `0/${this.recuerdos.getLength()}`, 19, hex(CREMA),
       { serif: true, peso: '700', origenX: 0 }).setScrollFactor(0).setDepth(61);
   }
@@ -1283,18 +1192,19 @@ class Nivel extends Phaser.Scene {
     irA(this, 'Mapa');
   }
 
-  cartelInicial(p, i) {
-    const tinta = i === 3 ? hex(TESORO.crema) : hex(p.oscuro);
-    const sombra = i === 3 ? '#000000' : '#FFFFFF';
+  cartelInicial(i) {
+    const tinta = i === 3 ? hex(CREMA) : hex(TINTA);
+    const sombra = i === 3 ? '#000000' : '#FFF6E2';
     const lineas = [
-      texto(this, W / 2, 210, `${ROMANOS[i]} · ${CFG.etapas[i].titulo}`, 34, tinta, { serif: true, peso: '700', sombra }),
-      texto(this, W / 2, 256, CFG.etapas[i].frase, 18, tinta, { serif: true, peso: 'italic 600', ancho: 340, sombra }),
-      texto(this, W / 2, 306, TACTIL ? 'Busca los 3 recuerdos y llega al cofre'
-        : 'Busca los 3 recuerdos y llega al cofre\n← →  o  A D para moverte · Espacio para saltar', 15, tinta, { peso: '700', sombra, interlineado: 4 }),
+      texto(this, W / 2, 200, `${ROMANOS[i]} · ${CFG.etapas[i].titulo}`, 36, tinta, { serif: true, peso: '700', sombra, desenfoque: 12 }),
+      texto(this, W / 2, 248, CFG.etapas[i].frase, 19, tinta, { serif: true, peso: 'italic 600', ancho: 340, sombra, desenfoque: 10 }),
+      texto(this, W / 2, 300, TACTIL ? 'Encuentra las 3 páginas del diario y llega al cofre'
+        : 'Encuentra las 3 páginas del diario y llega al cofre\n← →  o  A D para moverte · Espacio para saltar', 15, tinta,
+      { peso: '700', sombra, desenfoque: 8, interlineado: 4, ancho: 340 }),
     ];
     lineas.forEach((t) => t.setScrollFactor(0).setDepth(70).setAlpha(0));
-    this.tweens.add({ targets: lineas, alpha: 1, duration: 400, delay: 200 });
-    this.tweens.add({ targets: lineas, alpha: 0, duration: 500, delay: 3600, onComplete: () => lineas.forEach((t) => t.destroy()) });
+    this.tweens.add({ targets: lineas, alpha: 1, duration: 500, delay: 300 });
+    this.tweens.add({ targets: lineas, alpha: 0, duration: 600, delay: 3800, onComplete: () => lineas.forEach((t) => t.destroy()) });
   }
 
   /* ---------- Bucle ---------- */
@@ -1332,22 +1242,29 @@ class Nivel extends Phaser.Scene {
   }
 
   update(time, delta) {
+    if (!this.listo) return;
     const dt = Math.min(delta, 50);
     const ctl = this.leerControles();
 
+    // Plataformas móviles: van y vienen y llevan consigo a Angie si está parada encima
+    const bj = this.jug.body;
     this.moviles.getChildren().forEach((m) => {
       if (m.x >= m.max) m.setVelocityX(-55);
       else if (m.x <= m.min) m.setVelocityX(55);
+      const dx = m.x - (m.xPrevia ?? m.x);
+      m.xPrevia = m.x;
+      const encima = Math.abs(bj.bottom - m.body.top) <= 4 && bj.right > m.body.left && bj.left < m.body.right && bj.velocity.y >= 0;
+      if (dx && encima && !this.pausa && !this.cayendo) this.jug.x += dx;
     });
-    this.enemigos.getChildren().forEach((e) => {
-      if (!e.body || !e.body.enable) return;
-      const eb = e.body;
-      if (eb.blocked.left) e.dir = 1;
-      else if (eb.blocked.right) e.dir = -1;
-      else if (eb.blocked.down && !this.capa.getTileAtWorldXY(e.x + e.dir * 26, eb.bottom + 4)) e.dir *= -1;
-      e.setVelocityX(e.dir * 50);
+    // Sombras del olvido: flotan y patrullan; la luz del farol las adormece (van lentas y se desvanecen)
+    this.sombras.getChildren().forEach((e) => {
+      const cerca = Math.abs(this.jug.x - e.x) < 130 && Math.abs(this.jug.y - e.y) < 130;
+      if (e.x < e.base.x - 90) e.dir = 1;
+      else if (e.x > e.base.x + 90) e.dir = -1;
+      e.fase += dt * 0.003;
+      if (!this.pausa) e.setVelocity(e.dir * (cerca ? 16 : 46), Math.cos(e.fase) * 14);
       e.setFlipX(e.dir > 0);
-      if (e.y > H + 200) e.destroy();
+      e.setAlpha(e.alpha + ((cerca ? 0.55 : 0.95) - e.alpha) * 0.1);
     });
 
     if (this.pausa || this.ganado || this.cayendo) return;
@@ -1404,6 +1321,7 @@ class Nivel extends Phaser.Scene {
   }
 
   /* ---------- Eventos ---------- */
+  // Un golpe solo empuja y hace parpadear: no hay vidas ni castigo.
   herir(desdeX) {
     if (this.invuln > 0 || this.ganado || this.pausa) return;
     this.invuln = 1300;
@@ -1415,46 +1333,26 @@ class Nivel extends Phaser.Scene {
     this.tweens.add({ targets: this.jug, alpha: 0.3, duration: 100, yoyo: true, repeat: 5, onComplete: () => this.jug.setAlpha(1) });
   }
 
-  tocarEnemigo(e) {
-    if (!e.body.enable || this.ganado) return;
-    const b = this.jug.body;
-    if (b.velocity.y > 40 && b.bottom < e.body.top + 18) {
-      e.body.enable = false;
-      b.setVelocityY(-480);
-      this.coyote = 0;
-      Sonido.sfx('pisar');
-      const puf = this.add.particles(e.x, e.y, 'burbuja', {
-        speed: { min: 50, max: 140 }, lifespan: 450, scale: { start: 1.2, end: 0 }, emitting: false,
-      }).setDepth(17);
-      puf.explode(10);
-      this.tweens.add({ targets: e, scaleY: 0.2, scaleX: 1.3, alpha: 0, duration: 260, onComplete: () => e.destroy() });
-      this.time.delayedCall(600, () => puf.destroy());
-    } else {
-      this.herir(e.x);
-    }
-  }
-
-  tomarCorazon(h) {
-    h.disableBody(true, true);
+  tomarLuz(l) {
+    l.disableBody(true, true);
     Sonido.sfx('corazon');
-    const ch = this.add.particles(h.x, h.y, 'chispa', {
-      speed: { min: 40, max: 110 }, lifespan: 400, scale: { start: 0.8, end: 0 }, emitting: false,
+    const ch = this.add.particles(l.x, l.y, 'chispa', {
+      speed: { min: 40, max: 110 }, lifespan: 420, scale: { start: 0.8, end: 0 }, emitting: false, blendMode: 'ADD',
     }).setDepth(17);
-    ch.explode(6);
+    ch.explode(7);
     this.time.delayedCall(500, () => ch.destroy());
   }
 
   tomarRecuerdo(m) {
     if (this.pausa) return;
     m.disableBody(true, true);
-    m.brillo.destroy();
     this.recogidos++;
     this.contador.setText(`${this.recogidos}/${this.recuerdos.getLength()}`);
     Sonido.sfx('recoger');
     this.mostrarRecuerdo(m.idx);
   }
 
-  // Polaroid con foto, texto y fecha (pasa a "página de diario" en la fase 2).
+  // Página del diario de viaje: foto pegada con cinta, texto a mano y fecha.
   mostrarRecuerdo(idx) {
     const r = CFG.etapas[this.i].recuerdos[idx];
     if (!r) return;
@@ -1462,22 +1360,29 @@ class Nivel extends Phaser.Scene {
     this.physics.pause();
     this.jug.anims.pause();
 
-    const velo = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.5).setScrollFactor(0).setDepth(80).setAlpha(0);
-    const tarjeta = this.add.container(W / 2, 400).setScrollFactor(0).setDepth(81).setScale(0.3).setAngle(-10);
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.25).fillRoundedRect(-142, -172, 290, 360, 8);
-    g.fillStyle(0xFFFFFF, 1).fillRoundedRect(-145, -180, 290, 360, 8);
-    g.lineStyle(3, TINTA, 1).strokeRoundedRect(-145, -180, 290, 360, 8);
-    tarjeta.add(g);
-    tarjeta.add(foto(this, 0, -46, 254, 240, r.foto, PALETAS[this.i]));
-    tarjeta.add(texto(this, 0, 104, r.texto, 24, hex(TINTA), { serif: true, peso: '700', ancho: 260 }));
-    tarjeta.add(texto(this, 0, 146, r.fecha, 16, hex(TESORO.rosa), { serif: true, peso: 'italic 600' }));
+    const velo = this.add.rectangle(W / 2, H / 2, W, H, 0x0A0608, 0.6).setScrollFactor(0).setDepth(80).setAlpha(0);
+    const hoja = this.add.container(W / 2, 410).setScrollFactor(0).setDepth(81);
+    hoja.add(this.add.image(0, 0, 'pagina_diario'));
+    const imagen = foto(this, 0, -66, 236, 186, r.foto, PALETAS[this.i]).setAngle(-2);
+    hoja.add(imagen);
+    hoja.add(this.add.image(-108, -152, 'cinta').setAngle(-32));
+    hoja.add(this.add.image(108, -152, 'cinta').setAngle(30));
+    hoja.add(texto(this, 0, 96, r.texto, 26, hex(TINTA), { serif: true, peso: 'italic 700', ancho: 250 }));
+    hoja.add(texto(this, 0, 142, r.fecha, 18, '#B0485F', { serif: true, peso: 'italic 600' }));
+    hoja.add(texto(this, 122, 172, `${idx + 1} / 3`, 14, '#8C6A48', { serif: true, peso: '700' }));
+    hoja.setScale(0.05, 1).setAngle(-6);
     const sigue = texto(this, W / 2, 640, TACTIL ? 'Toca para seguir' : 'Clic o Espacio para seguir', 18, hex(CREMA))
       .setScrollFactor(0).setDepth(81).setAlpha(0);
 
-    this.tweens.add({ targets: velo, alpha: 1, duration: 250 });
-    this.tweens.add({ targets: tarjeta, scale: 1, angle: -3, duration: 450, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: sigue, alpha: 1, duration: 300, delay: 600 });
+    if (SIN_FUNDIDO) {
+      velo.setAlpha(1);
+      hoja.setScale(1).setAngle(-2);
+      sigue.setAlpha(1);
+    } else {
+      this.tweens.add({ targets: velo, alpha: 1, duration: 250 });
+      this.tweens.add({ targets: hoja, scaleX: 1, angle: -2, duration: 480, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: sigue, alpha: 1, duration: 300, delay: 700 });
+    }
 
     this.time.delayedCall(600, () => {
       let cerrado = false;
@@ -1488,10 +1393,13 @@ class Nivel extends Phaser.Scene {
         if (this.input.keyboard) this.input.keyboard.off('keydown', cerrar);
         Sonido.sfx('tap');
         this.tweens.add({
-          targets: [velo, tarjeta, sigue], alpha: 0, duration: 250,
+          targets: hoja, scaleX: 0.05, angle: 4, duration: 260, ease: 'Sine.easeIn',
+        });
+        this.tweens.add({
+          targets: [velo, sigue], alpha: 0, duration: 260,
           onComplete: () => {
             velo.destroy();
-            tarjeta.destroy();
+            hoja.destroy();
             sigue.destroy();
             this.physics.resume();
             this.jug.anims.resume();
@@ -1505,13 +1413,16 @@ class Nivel extends Phaser.Scene {
     });
   }
 
-  activarBandera(f) {
-    if (f.activa) return;
-    f.activa = true;
-    f.setTexture('bandera_on');
+  // Farol de piedra: punto de control
+  encenderFarol(f) {
+    if (f.encendido) return;
+    f.encendido = true;
+    f.setTexture('faro_on');
     this.control = { x: f.x, y: f.y };
     Sonido.sfx('bandera');
-    this.tweens.add({ targets: f, scaleY: 1.15, duration: 150, yoyo: true });
+    const brillo = this.add.image(f.x, f.y - 24, 'brillo').setTint(ORO).setScale(0.3).setBlendMode('ADD').setDepth(13);
+    this.tweens.add({ targets: brillo, scale: 1.4, duration: 400, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: brillo, alpha: 0.55, duration: 1200, yoyo: true, repeat: -1, delay: 400 });
   }
 
   reaparecer() {
@@ -1534,8 +1445,8 @@ class Nivel extends Phaser.Scene {
     this.jug.body.setVelocity(0, this.jug.body.velocity.y);
     this.jug.stop();
     this.jug.setFrame(11);
-    this.tweens.add({ targets: this.cofre, scale: 0.85, duration: 160, yoyo: true, repeat: 2 });
-    this.tweens.add({ targets: this.brilloCofre, scale: 3, alpha: 1, duration: 500 });
+    this.tweens.add({ targets: this.cofre, scale: 1.15, duration: 160, yoyo: true, repeat: 2 });
+    this.tweens.add({ targets: this.brilloCofre, scale: 3.4, alpha: 1, duration: 500 });
     aviso(this, W / 2, 260, '¡Encontraste el cofre!', { duracion: 1400 });
 
     // Fases 2–3: aquí se abrirá el minijuego de la etapa antes de dar la llave.

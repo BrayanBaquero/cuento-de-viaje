@@ -528,6 +528,356 @@ const Arte = (() => {
     return doc(32, 32, s, '', 2);
   }
 
+  /* =====================================================================
+   *  Niveles: capas de paralaje por etapa, terreno orgánico y objetos
+   * ===================================================================== */
+  const L = 1024; // ancho de cada mosaico de paralaje (se repite sin costuras)
+
+  // Cresta que empata en x=0 y x=L (frecuencias enteras)
+  function crestaCiclica({ base, amp, ks = [[2, 1], [5, 0.45], [11, 0.18]], color, op = 1, filter = '', paso = 8 }) {
+    const ph = ks.map(() => rnd(0, 6.28));
+    // Se dibuja un poco más allá de los bordes para que el desenfoque no deje costuras
+    let d = `M-48,844 `;
+    for (let x = -48; x <= L + 48; x += paso) {
+      let y = base;
+      ks.forEach(([k, a], i) => { y -= amp * a * (0.5 + 0.5 * Math.sin((x / L) * Math.PI * 2 * k + ph[i])); });
+      d += `L${x},${f(y)} `;
+    }
+    d += `L${L + 48},844 Z`;
+    return `<path d="${d}" fill="${color}" opacity="${op}"${filter ? ` filter="url(#${filter})"` : ''}/>`;
+  }
+
+  // Repite un dibujo cerca de los bordes para que el mosaico no tenga costuras
+  const ciclico = (x, margen, dibujar) => {
+    let s = dibujar(x);
+    if (x < margen) s += dibujar(x + L);
+    if (x > L - margen) s += dibujar(x - L);
+    return s;
+  };
+
+  function hierbaCiclica({ base, hMin, hMax, count, color, op = 1, lean = 5, wMin = 2, wMax = 5 }) {
+    let d = '';
+    for (let i = 0; i < count; i++) {
+      const x0 = rnd(0, L), h = rnd(hMin, hMax), w = rnd(wMin, wMax), l = rnd(-lean, lean);
+      d += ciclico(x0, 20, (x) => `M${f(x)},${base} Q${f(x + l * 0.3)},${f(base - h * 0.6)} ${f(x + l)},${f(base - h)} Q${f(x + w + l * 0.3)},${f(base - h * 0.5)} ${f(x + w)},${base}Z`);
+    }
+    return `<path d="${d}" fill="${color}" opacity="${op}"/>`;
+  }
+
+  const niebla = (y, h, color, op = 0.8) =>
+    `<rect x="-60" y="${y}" width="${L + 120}" height="${h}" fill="url(#niebla)" opacity="${op}" filter="url(#b8)"/>`;
+
+  // Repite un grupo desplazado ±L (para trazos desenfocados que cruzan el borde)
+  const repetido = (contenido) => `<g>${contenido}</g><g transform="translate(${L},0)">${contenido}</g><g transform="translate(${-L},0)">${contenido}</g>`;
+
+  const nieblaDef = (c) => lg('niebla', [[0, c, 0], [0.5, c, 0.75], [1, c, 0]]);
+
+  function casa(x, base, w, h, techo, color, ventana) {
+    let s = `<path d="M${f(x)},${base} V${f(base - h)} L${f(x + w / 2)},${f(base - h - techo)} L${f(x + w)},${f(base - h)} V${base} Z" fill="${color}"/>`;
+    if (ventana) {
+      const wx = x + w / 2 - 4, wy = base - h * 0.62;
+      s += `<circle cx="${f(wx + 4)}" cy="${f(wy + 5)}" r="16" fill="url(#glowGold)" opacity=".85"/><rect x="${f(wx)}" y="${f(wy)}" width="8" height="10" rx="1.5" fill="${ventana}"/>`;
+    }
+    return s;
+  }
+
+  function tronco(x, base, w, top, color) {
+    return `<path d="M${f(x - w * 0.9)},${base} Q${f(x - w * 0.5)},${base - 14} ${f(x - w / 2)},${base - 30} L${f(x - w * 0.42)},${top} L${f(x + w * 0.42)},${top} L${f(x + w / 2)},${base - 30} Q${f(x + w * 0.5)},${base - 14} ${f(x + w * 0.9)},${base} Z" fill="${color}"/>`;
+  }
+
+  function islaFlotante(x, y, w, color, borde) {
+    return `<path d="M${f(x - w / 2)},${y} Q${x},${y - 6} ${f(x + w / 2)},${y} L${f(x + w * 0.28)},${f(y + w * 0.32)} L${f(x + w * 0.05)},${f(y + w * 0.6)} L${f(x - w * 0.18)},${f(y + w * 0.3)} Z" fill="${color}"/>` +
+      `<path d="M${f(x - w / 2)},${y} Q${x},${y - 6} ${f(x + w / 2)},${y}" stroke="${borde}" stroke-width="1.6" fill="none" opacity=".85"/>`;
+  }
+
+  // Sol, luna o rayos de cada etapa (700×700, fijo en pantalla)
+  function astro(i) {
+    semilla(200 + i);
+    let s = '';
+    if (i === 0) {
+      s += `<circle cx="350" cy="350" r="330" fill="url(#glowCream)" opacity=".95"/><circle cx="350" cy="350" r="46" fill="#FFF8E6"/>`;
+      s += rays({ ox: 350, oy: 350, count: 9, len: 700, angle: 118, spread: 80, color: '#FFF4DC', op: 0.32 });
+    } else if (i === 1) {
+      s += `<circle cx="350" cy="350" r="330" fill="url(#glowCream)" opacity=".7"/><circle cx="350" cy="350" r="70" fill="#FFE7F0" opacity=".55"/>`;
+    } else if (i === 2) {
+      s += rays({ ox: 600, oy: -60, count: 8, len: 900, angle: 118, spread: 40, color: '#F4FFE8', op: 0.5 });
+    } else {
+      s += `<circle cx="350" cy="350" r="240" fill="url(#glowCream)" opacity=".7"/><circle cx="350" cy="350" r="34" fill="#FFF4DE"/>`;
+      s += `<circle cx="338" cy="340" r="6" fill="#EADCC0" opacity=".6"/><circle cx="362" cy="364" r="4" fill="#EADCC0" opacity=".6"/>`;
+    }
+    return doc(700, 700, s);
+  }
+
+  // Tres capas de paralaje (lejos, medio, campo) de 1024×844 por etapa
+  function capas(i) {
+    semilla(300 + i);
+    const r = {};
+    if (i === 0) {
+      r.lejos = doc(L, 844, crestaCiclica({ base: 450, amp: 110, color: '#D9B2AB', op: 0.85, filter: 'b1' }) + niebla(395, 130), nieblaDef('#FBEAD2'));
+      const mid = '#B98A8E';
+      let m = tower(170, 500, 28, 112, mid, '#E9C2B0') + arch(520, 504, 24, 76, mid, true, 9) + arch(590, 508, 20, 58, mid, false, 8) + tower(860, 504, 20, 78, mid);
+      m += crestaCiclica({ base: 520, amp: 48, color: mid }) + niebla(480, 110);
+      r.medio = doc(L, 844, m, nieblaDef('#FBEAD2'));
+      let c = crestaCiclica({ base: 578, amp: 22, ks: [[3, 1], [8, 0.4]], color: '#D4A56E' });
+      c += hierbaCiclica({ base: 602, hMin: 14, hMax: 40, count: 620, color: '#C08E58', op: 0.92, lean: 6 });
+      c += hierbaCiclica({ base: 606, hMin: 10, hMax: 26, count: 320, color: '#EAC690', op: 0.75, lean: 5 });
+      r.campo = doc(L, 844, c);
+    } else if (i === 1) {
+      r.lejos = doc(L, 844, crestaCiclica({ base: 430, amp: 100, color: '#A08BC8', op: 0.85, filter: 'b1' }) + niebla(400, 120), nieblaDef('#F3DCE8'));
+      const pueblo = '#5E4A7E';
+      let m = '';
+      let x = 10;
+      while (x < L - 60) {
+        const w = rnd(30, 54), hh = rnd(40, 70), techo = rnd(16, 24);
+        m += casa(x, 560, w, hh, techo, pueblo, R() < 0.75 ? '#FFD58A' : null);
+        x += w + rnd(4, 26);
+      }
+      m += tower(400, 560, 24, 140, pueblo, '#FFD58A');
+      m += `<rect y="558" width="${L}" height="286" fill="${pueblo}"/>`;
+      // Guirnaldas de faroles (empatan en los bordes)
+      [[0, 512, 300], [512, 1024, 300]].forEach(([a, b, y0]) => {
+        const cx = (a + b) / 2;
+        m += `<path d="M${a},${y0} Q${cx},${y0 + 90} ${b},${y0}" stroke="#3E2F5B" stroke-width="1.6" fill="none"/>`;
+        for (let k = 1; k < 7; k++) {
+          const t = k / 7, px = (1 - t) * (1 - t) * a + 2 * (1 - t) * t * cx + t * t * b, py = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * (y0 + 90) + t * t * y0;
+          m += `<circle cx="${f(px)}" cy="${f(py + 9)}" r="18" fill="url(#glowGold)"/><rect x="${f(px - 4.5)}" y="${f(py + 2)}" width="9" height="12" rx="3" fill="#FFB867" stroke="#3E2F5B" stroke-width="1.2"/>`;
+        }
+      });
+      r.medio = doc(L, 844, m + niebla(530, 70, '#F3DCE8', 0.5), nieblaDef('#F3DCE8'));
+      let c = '';
+      [120, 460, 800].forEach((px) => {
+        c += `<path d="M${px},600 V530 h10" stroke="#2B2145" stroke-width="5" fill="none"/><circle cx="${px + 12}" cy="538" r="22" fill="url(#glowGold)"/><rect x="${px + 7}" y="532" width="11" height="14" rx="3" fill="#FFB867" stroke="#2B2145" stroke-width="1.5"/>`;
+      });
+      c += crestaCiclica({ base: 590, amp: 12, ks: [[4, 1]], color: '#3E2F5B' });
+      r.campo = doc(L, 844, c);
+    } else if (i === 2) {
+      let lj = '';
+      for (let x = 30; x < L; x += rnd(90, 140)) lj += ciclico(x, 40, (px) => tronco(px, 600, rnd(16, 26), -10, '#9ACFB6'));
+      r.lejos = doc(L, 844, lj + niebla(430, 180, '#E9FFF3', 0.85), nieblaDef('#E9FFF3'));
+      let m = '';
+      for (let x = 80; x < L; x += rnd(210, 290)) m += ciclico(x, 50, (px) => tronco(px, 610, rnd(30, 42), -10, '#5E9F84'));
+      m += arch(600, 600, 26, 70, '#4E8C75', true, 10);
+      m += `<g filter="url(#b8)">${repetido([0, 260, 520, 780].map((x) => `<ellipse cx="${x}" cy="10" rx="190" ry="70" fill="#2F6B5A"/>`).join(''))}</g>`;
+      r.medio = doc(L, 844, m + niebla(500, 120, '#E9FFF3', 0.6), nieblaDef('#E9FFF3'));
+      let c = '';
+      [150, 650].forEach((x) => { c += tronco(x, 640, 58, -10, '#1F4F45'); });
+      [60, 330, 560, 880].forEach((x) => {
+        const largo = rnd(110, 220);
+        c += `<path d="M${x},0 C${x + 8},${largo * 0.4} ${x - 8},${largo * 0.7} ${x + 3},${largo}" stroke="#1F4F45" stroke-width="2.5" fill="none"/>`;
+        for (let k = 1; k < 5; k++) c += `<ellipse cx="${x + (k % 2 ? 4 : -3)}" cy="${f(largo * k / 5)}" rx="5" ry="2.6" fill="#2F6B5A"/>`;
+      });
+      c += `<g filter="url(#b3)">${repetido([100, 420, 760].map((x) => `<ellipse cx="${x}" cy="-10" rx="170" ry="55" fill="#1F4F45"/>`).join(''))}</g>`;
+      r.campo = doc(L, 844, c);
+    } else {
+      let lj = dots({ x0: 0, x1: L, y0: 0, y1: 480, count: 160, rMin: 0.4, rMax: 1.4, colors: ['#FFF1D6', '#DDE4FF'] });
+      lj += `<g filter="url(#b16)" opacity=".5">${repetido('<path d="M0,140 C200,60 360,200 560,110 C720,40 880,120 1024,140" stroke="#7FE0C2" stroke-width="40" fill="none"/><path d="M0,200 C260,140 520,230 1024,200" stroke="#B59CFF" stroke-width="30" fill="none"/>')}</g>`;
+      lj += crestaCiclica({ base: 520, amp: 80, color: '#20264F' }) + tower(700, 470, 20, 80, '#20264F');
+      r.lejos = doc(L, 844, lj);
+      let m = islaFlotante(220, 300, 110, '#1A1E42', '#F5C26B') + arch(185, 300, 16, 36, '#1A1E42', true, 6);
+      m += islaFlotante(560, 360, 80, '#1A1E42', '#F5C26B') + `<circle cx="560" cy="346" r="22" fill="url(#glowGold)"/><circle cx="560" cy="348" r="3" fill="#FFE7A8"/>`;
+      m += islaFlotante(860, 260, 70, '#1A1E42', '#F5C26B');
+      m += crestaCiclica({ base: 560, amp: 34, color: '#171C40' }) + niebla(520, 90, '#8F86C9', 0.35);
+      r.medio = doc(L, 844, m, nieblaDef('#8F86C9'));
+      let c = crestaCiclica({ base: 596, amp: 18, ks: [[3, 1], [7, 0.4]], color: '#111533' });
+      for (let k = 0; k < 40; k++) c += ciclico(rnd(0, L), 10, (x) => flower(x, rnd(585, 605), 1.8, pick(['#BFD8FF', '#FFF1D6', '#F5C26B'])));
+      r.campo = doc(L, 844, c);
+    }
+    return r;
+  }
+
+  const TEMAS = [
+    { tierra: ['#6A4650', '#43293A', '#1A1017'], borde: '#F7CF9C', hierba: '#24161E', brillo: '#EDBB7E', flores: ['#FFF1D6', '#F2A7B5'], piedra: '#8E6F7A', losa: '#6B4C57', musgo: '#8E8F5A' },
+    { tierra: ['#4A3A6A', '#2B2145', '#140F24'], borde: '#F2C6D9', hierba: '#1C1530', brillo: '#C9B5E8', flores: ['#FFB867', '#F2C6D9'], piedra: '#6E5C8E', losa: '#584679', musgo: '#9C86C8' },
+    { tierra: ['#2F6B5A', '#1F4F45', '#0E2A24'], borde: '#CFF5DF', hierba: '#123029', brillo: '#9ACFB6', flores: ['#F3FF9A', '#FFFFFF'], piedra: '#4E8C75', losa: '#3E7A64', musgo: '#7FC09F' },
+    { tierra: ['#2A2F5E', '#171C40', '#0A0C1F'], borde: '#F5C26B', hierba: '#0D1028', brillo: '#7F8BD6', flores: ['#BFD8FF', '#F5C26B', '#FFF1D6'], piedra: '#3A4078', losa: '#2A2F5E', musgo: '#7FE0C2' },
+  ];
+
+  // Terreno del nivel a partir de su diseño (suelo, muros y plataformas). Ocupa y = 280–844.
+  const TERRENO_Y = 280;
+  function terreno(i, def) {
+    semilla(100 + i);
+    const T = TEMAS[i];
+    const ancho = def.ancho * 40, alto = 844 - TERRENO_Y;
+    const Y = (v) => f(v - TERRENO_Y);
+    let s = '';
+
+    // Abismo en los huecos
+    let x = 0;
+    [...def.suelo].sort((a, b) => a[0] - b[0]).forEach(([a, b]) => {
+      if (a * 40 > x) s += `<rect x="${x}" y="${Y(600)}" width="${a * 40 - x}" height="${Y(844) - Y(600)}" fill="url(#abismo)"/>`;
+      x = Math.max(x, b * 40);
+    });
+    if (x < ancho) s += `<rect x="${x}" y="${Y(600)}" width="${ancho - x}" height="${Y(844) - Y(600)}" fill="url(#abismo)"/>`;
+
+    const hierbaEn = (x0, x1, yBase, densidad) => {
+      const n = Math.round((x1 - x0) * densidad);
+      let d1 = '', d2 = '';
+      for (let k = 0; k < n; k++) {
+        const px = rnd(x0 + 2, x1 - 4), h = rnd(5, 17), w = rnd(1.5, 3.5), l = rnd(-4, 4);
+        d1 += `M${f(px)},${Y(yBase + 2)} Q${f(px + l * 0.3)},${Y(yBase + 2 - h * 0.6)} ${f(px + l)},${Y(yBase + 2 - h)} Q${f(px + w)},${Y(yBase + 2 - h * 0.5)} ${f(px + w)},${Y(yBase + 2)}Z`;
+        if (k % 3 === 0) {
+          const h2 = rnd(4, 10), px2 = rnd(x0 + 2, x1 - 4);
+          d2 += `M${f(px2)},${Y(yBase + 2)} L${f(px2 + 1)},${Y(yBase + 2 - h2)} L${f(px2 + 2)},${Y(yBase + 2)}Z`;
+        }
+      }
+      return `<path d="${d1}" fill="${T.hierba}"/><path d="${d2}" fill="${T.brillo}" opacity=".7"/>`;
+    };
+
+    // Tramos de suelo con bordes de acantilado irregulares
+    def.suelo.forEach(([a, b]) => {
+      const x0 = a * 40, x1 = b * 40;
+      const borde = (xb, dir) => [[xb, 600], [xb + dir * 3, 640], [xb - dir * 4, 690], [xb + dir * 5, 750], [xb - dir * 2, 844]];
+      const izq = a === 0 ? [[-10, 844], [-10, 600]] : borde(x0, 1).reverse();
+      const der = b * 40 >= ancho ? [[ancho + 10, 600], [ancho + 10, 844]] : borde(x1, -1);
+      let arriba = [];
+      for (let px = x0; px <= x1; px += 8) arriba.push([px, 600 + 1.2 * Math.sin(px * 0.05) + 0.8 * Math.sin(px * 0.13)]);
+      const pts = [...izq, ...arriba, ...der];
+      s += `<path d="M${pts.map(([px, py]) => `${f(px)},${Y(py)}`).join(' L')} Z" fill="url(#tierra)" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>`;
+      s += `<path d="M${arriba.map(([px, py]) => `${f(px)},${Y(py)}`).join(' L')}" stroke="${T.borde}" stroke-width="2" fill="none"/>`;
+      // Detalle de la tierra: piedras enterradas, raíces y vetas
+      for (let k = 0; k < (x1 - x0) / 60; k++) {
+        s += `<ellipse cx="${f(rnd(x0 + 10, x1 - 10))}" cy="${Y(rnd(650, 830))}" rx="${f(rnd(6, 16))}" ry="${f(rnd(3, 7))}" fill="#000" opacity=".14"/>`;
+      }
+      for (let k = 0; k < (x1 - x0) / 140; k++) {
+        const px = rnd(x0 + 20, x1 - 30), py = rnd(660, 800), rx = rnd(10, 20);
+        s += `<path d="M${f(px - rx)},${Y(py)} Q${f(px - rx * 0.6)},${Y(py - rx * 0.7)} ${f(px)},${Y(py - rx * 0.6)} Q${f(px + rx * 0.8)},${Y(py - rx * 0.5)} ${f(px + rx)},${Y(py)} Z" fill="${T.tierra[0]}" opacity=".55" stroke="${INK}" stroke-width="1" stroke-opacity=".4"/>`;
+      }
+      for (let k = 0; k < (x1 - x0) / 110; k++) {
+        const px = rnd(x0 + 10, x1 - 40), largo = rnd(20, 60);
+        s += `<path d="M${f(px)},${Y(606)} C${f(px + 6)},${Y(606 + largo * 0.4)} ${f(px - 8)},${Y(606 + largo * 0.7)} ${f(px + 4)},${Y(606 + largo)}" stroke="${INK}" stroke-width="1.4" opacity=".45" fill="none"/>`;
+      }
+      for (let py = 640; py < 840; py += rnd(34, 56)) {
+        const a = rnd(x0, x1 - 60);
+        s += `<path d="M${f(a)},${Y(py)} q${f(rnd(30, 80))},${f(rnd(-4, 4))} ${f(rnd(80, 160))},0" stroke="#FFFFFF" stroke-width="1" opacity=".05" fill="none"/>`;
+      }
+      s += hierbaEn(x0, x1, 600, 0.35);
+      for (let k = 0; k < (x1 - x0) / 70; k++) s += flower(rnd(x0 + 10, x1 - 10), Y(591), 2.1, pick(T.flores));
+    });
+
+    // Muros: pilares de piedra en ruinas con musgo
+    def.bloques.forEach(([c, r0, w]) => {
+      const x0 = c * 40, x1 = (c + w) * 40, top = r0 * 40;
+      s += `<path d="M${x0 - 1},${Y(604)} L${x0 + 1},${Y(top + 4)} L${x0 + 6},${Y(top - 1)} L${x1 - 6},${Y(top)} L${x1 + 1},${Y(top + 5)} L${x1 - 1},${Y(604)} Z" fill="url(#piedra)" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>`;
+      let ladrillos = '';
+      for (let py = top + 20; py < 600; py += 20) {
+        ladrillos += `M${x0 + 3},${Y(py)} H${x1 - 3} `;
+        const desfase = ((py - top) / 20) % 2 ? 0 : 20;
+        for (let px = x0 + 20 + desfase; px < x1 - 6; px += 40) ladrillos += `M${px},${Y(py)} V${Y(py - 20)} `;
+      }
+      s += `<path d="${ladrillos}" stroke="${INK}" stroke-width="1.1" opacity=".35"/>`;
+      s += `<path d="M${x0 + 1},${Y(top + 4)} L${x0 + 6},${Y(top - 1)} L${x1 - 6},${Y(top)} L${x1 + 1},${Y(top + 5)}" stroke="${T.borde}" stroke-width="2" fill="none"/>`;
+      s += hierbaEn(x0 + 2, x1 - 2, top, 0.3).replace(T.hierba, T.musgo);
+    });
+
+    // Plataformas: losas de ruina flotantes con enredaderas
+    def.plataformas.forEach(([c, r, w]) => {
+      const x0 = c * 40, x1 = (c + w) * 40, top = r * 40, cx = (x0 + x1) / 2;
+      const p = [[x0 - 3, top + 7], [x0 + 3, top - 1], [cx, top - 2], [x1 - 3, top - 1], [x1 + 3, top + 7], [x1 - 6, top + 18], [cx + w * 8, top + 22], [cx, top + 32], [cx - w * 9, top + 21], [x0 + 6, top + 18]];
+      s += `<path d="M${p.map(([px, py]) => `${f(px)},${Y(py)}`).join(' L')} Z" fill="${T.losa}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>`;
+      s += `<path d="M${x0 + 8},${Y(top + 10)} L${cx - 6},${Y(top + 13)} M${cx + 8},${Y(top + 8)} L${x1 - 10},${Y(top + 14)}" stroke="${INK}" stroke-width="1.1" opacity=".45"/>`;
+      s += `<path d="M${x0 + 3},${Y(top - 1)} L${cx},${Y(top - 2)} L${x1 - 3},${Y(top - 1)}" stroke="${T.borde}" stroke-width="2" fill="none"/>`;
+      s += hierbaEn(x0 + 4, x1 - 4, top - 2, 0.3).replace(T.hierba, T.musgo);
+      for (let k = 0; k < w; k++) {
+        const vx = rnd(x0 + 10, x1 - 10), largo = rnd(14, 34), base = top + 18;
+        s += `<path d="M${f(vx)},${Y(base)} C${f(vx - 4)},${Y(base + largo * 0.4)} ${f(vx + 4)},${Y(base + largo * 0.7)} ${f(vx)},${Y(base + largo)}" stroke="#3E2B33" stroke-width="1.5" fill="none"/>`;
+        s += `<ellipse cx="${f(vx + 2)}" cy="${Y(base + largo * 0.5)}" rx="3.2" ry="1.8" fill="${T.musgo}"/><ellipse cx="${f(vx - 1)}" cy="${Y(base + largo)}" rx="3" ry="1.7" fill="${T.musgo}"/>`;
+      }
+    });
+
+    return doc(ancho, alto, s,
+      `<linearGradient id="tierra" gradientUnits="userSpaceOnUse" x1="0" y1="${Y(600)}" x2="0" y2="${Y(844)}">` +
+      `<stop offset="0" stop-color="${T.tierra[0]}"/><stop offset=".14" stop-color="${T.tierra[1]}"/><stop offset="1" stop-color="${T.tierra[2]}"/></linearGradient>` +
+      lg('piedra', [[0, T.piedra], [1, T.tierra[2]]]) +
+      lg('abismo', [[0, '#000000', 0], [0.35, '#0B060A', 0.75], [1, '#050305', 1]]));
+  }
+
+  /* ---------- Objetos de los niveles ---------- */
+  function zarza() {
+    const c = '#21151C';
+    let espinas = '';
+    [[-16, -10, -30], [-6, -18, 20], [4, -11, 160], [14, -19, -20], [20, -8, 40], [-20, -2, 200], [-2, -6, 120]].forEach(([tx, ty, a]) => {
+      espinas += `<polygon points="0,-2.4 8,0 0,2.4" fill="${c}" transform="translate(${tx},${ty}) rotate(${a})"/>`;
+    });
+    const s = `<g transform="translate(32,38)"><path d="M-26,0 C-22,-18 -9,-27 0,-17 C6,-9 11,-29 23,-21 C29,-16 27,-4 25,0 M-13,0 C-15,-9 -6,-11 -2,-7 C2,-2 8,-11 13,0" stroke="${c}" stroke-width="3.6" fill="none" stroke-linecap="round"/>${espinas}<circle cx="-4" cy="-18" r="2.6" fill="#9B3651"/><circle cx="16" cy="-17" r="2.2" fill="#9B3651"/><circle cx="-18" cy="-8" r="2" fill="#9B3651"/></g>`;
+    return doc(64, 40, s);
+  }
+
+  function sombra() {
+    const s = `<g transform="translate(35,34)"><circle r="34" fill="url(#violeta)"/>` +
+      `<path d="M-18,4 C-22,-16 -11,-28 0,-28 C11,-28 22,-16 18,4 C14,10 11,0 7,8 C3,0 -1,10 -5,5 C-9,-1 -13,10 -18,4Z" fill="#231A2E" opacity=".95"/>` +
+      `<ellipse cx="-6" cy="-13" rx="2.8" ry="3.8" fill="#EDE3FF"/><ellipse cx="6" cy="-13" rx="2.8" ry="3.8" fill="#EDE3FF"/>` +
+      `<circle cx="-6" cy="-13" r="6" fill="#EDE3FF" opacity=".25" filter="url(#b3)"/><circle cx="6" cy="-13" r="6" fill="#EDE3FF" opacity=".25" filter="url(#b3)"/>` +
+      `<path d="M-21,8 q-6,4 -11,0 M21,6 q7,3 12,-2" stroke="#231A2E" stroke-width="2.2" opacity=".55" fill="none" stroke-linecap="round"/></g>`;
+    return doc(70, 60, s, '<radialGradient id="violeta"><stop offset="0" stop-color="#B9A2FF" stop-opacity=".5"/><stop offset="1" stop-color="#B9A2FF" stop-opacity="0"/></radialGradient>');
+  }
+
+  function luz() {
+    return doc(32, 32, `<circle cx="16" cy="16" r="15" fill="url(#glowGold)"/>${estrella4(16, 16, 8, '#FFF6DE')}<circle cx="16" cy="16" r="2.4" fill="#FFFFFF"/>`);
+  }
+
+  function faro(encendido) {
+    let s = '';
+    if (encendido) s += `<circle cx="18" cy="22" r="22" fill="url(#glowGold)"/>`;
+    s += `<path d="M14,86 L15,34 H21 L22,86 Z" fill="#6B5A63" stroke="${INK}" stroke-width="2"/>`;
+    s += `<rect x="8" y="84" width="20" height="6" rx="2" fill="#6B5A63" stroke="${INK}" stroke-width="2"/>`;
+    s += `<path d="M7,14 L18,6 L29,14 Z" fill="#4A3A42" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`;
+    s += `<rect x="10" y="14" width="16" height="18" rx="2" fill="${encendido ? '#FFD27A' : '#3A2D35'}" stroke="${INK}" stroke-width="2"/>`;
+    s += `<path d="M18,14 V32 M10,23 H26" stroke="${INK}" stroke-width="1.2" opacity=".6"/>`;
+    if (encendido) s += `<circle cx="18" cy="23" r="4" fill="#FFF6DE"/>`;
+    return doc(36, 92, s);
+  }
+
+  function paginaIcono() {
+    return doc(44, 50, `<circle cx="22" cy="25" r="22" fill="url(#glowGold)"/><g transform="translate(22,25) rotate(-8)"><rect x="-13" y="-17" width="26" height="34" rx="2" fill="#FBF3E2" stroke="${INK}" stroke-width="1.5"/><rect x="-9" y="-13" width="18" height="13" fill="#E9C9B0"/>${heart(0, -6, 0.7, '#C9566E')}<path d="M-8,5 H8 M-8,9 H5 M-8,13 H7" stroke="#B9A58E" stroke-width="1.2"/></g>`);
+  }
+
+  function cofreNivel() {
+    const s = `<rect x="14" y="34" width="72" height="38" rx="5" fill="#7A4A2A" stroke="${INK}" stroke-width="2.5"/>` +
+      `<path d="M12,36 Q50,6 88,36 Z" fill="#8E5631" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>` +
+      `<rect x="26" y="20" width="7" height="52" fill="#F5C26B" stroke="${INK}" stroke-width="1.4"/><rect x="67" y="20" width="7" height="52" fill="#F5C26B" stroke="${INK}" stroke-width="1.4"/>` +
+      `<rect x="42" y="30" width="16" height="17" rx="3" fill="#F5C26B" stroke="${INK}" stroke-width="1.6"/>` + heart(50, 38.5, 0.5, '#C9566E') +
+      `<path d="M20,36 Q50,14 80,36" stroke="#FFFFFF" stroke-width="1.4" opacity=".3" fill="none"/>`;
+    return doc(100, 76, s);
+  }
+
+  function losa(i) {
+    const T = TEMAS[i];
+    const s = `<path d="M2,6 L6,1 L74,1 L78,6 L70,15 L52,18 L40,23 L28,17 L10,15 Z" fill="${T.losa}" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/>` +
+      `<path d="M6,1 L74,1" stroke="${T.borde}" stroke-width="2"/><circle cx="40" cy="9" r="3" fill="${T.borde}" opacity=".7"/><circle cx="40" cy="9" r="8" fill="url(#glowGold)" opacity=".5"/>`;
+    return doc(80, 26, s);
+  }
+
+  function paginaDiario() {
+    semilla(77);
+    const pts = [];
+    for (let t = 0; t <= 300; t += 10) pts.push([10 + t, 10 + rnd(-2, 2)]);
+    for (let t = 10; t <= 370; t += 10) pts.push([310 + rnd(-2, 2), 10 + t]);
+    for (let t = 290; t >= 0; t -= 10) pts.push([10 + t, 380 + rnd(-2, 2)]);
+    for (let t = 360; t > 0; t -= 10) pts.push([10 + rnd(-2, 2), 10 + t]);
+    const papel = 'M' + pts.map(([x, y]) => `${f(x)},${f(y)}`).join(' L') + ' Z';
+    let s = `<path d="${papel}" fill="#000" opacity=".4" filter="url(#b8)" transform="translate(4,8)"/>`;
+    s += `<path d="${papel}" fill="url(#hoja)" stroke="#8C6A48" stroke-width="1.2"/>`;
+    for (let y = 290; y < 370; y += 22) s += `<path d="M34,${y} H286" stroke="#B9A58E" stroke-width=".8" opacity=".6"/>`;
+    s += `<path d="M40,10 V380" stroke="#D9A0A8" stroke-width="1" opacity=".5"/>`;
+    return doc(320, 392, s, '<radialGradient id="hoja" cx=".5" cy=".45" r=".8"><stop offset="0" stop-color="#FBF3E2"/><stop offset=".8" stop-color="#F1E2C4"/><stop offset="1" stop-color="#E2CBA0"/></radialGradient>');
+  }
+
+  function cinta() {
+    return doc(64, 20, `<path d="M2,3 L62,1 L60,18 L4,19 Z" fill="#F3E6C8" opacity=".75" stroke="#C9B28A" stroke-width=".8"/>`);
+  }
+
+  // Texturas propias de una etapa: se crean al entrar al nivel y se liberan al salir
+  function nivelArte(i, def) {
+    const c = capas(i);
+    return {
+      ['n_astro']: astro(i),
+      ['n_lejos']: c.lejos,
+      ['n_medio']: c.medio,
+      ['n_campo']: c.campo,
+      ['n_terreno']: terreno(i, def),
+    };
+  }
+
   /* ---------- Catálogo que carga Boot ---------- */
   function catalogo() {
     return {
@@ -553,8 +903,29 @@ const Arte = (() => {
       ico_casa: icono('casa'),
       ico_sonido: icono('sonido'),
       ico_mudo: icono('mudo'),
+      zarza: zarza(),
+      sombra: sombra(),
+      luz: luz(),
+      faro: faro(false),
+      faro_on: faro(true),
+      pagina: paginaIcono(),
+      cofre_nivel: cofreNivel(),
+      losa_0: losa(0),
+      losa_1: losa(1),
+      losa_2: losa(2),
+      losa_3: losa(3),
+      pagina_diario: paginaDiario(),
+      cinta: cinta(),
     };
   }
 
-  return { catalogo, ANCHO_MAX, SUELO_INTRO, PAPEL, RUTA, ZONAS };
+  // Colores del cielo de cada etapa (degradado vertical que pinta Phaser)
+  const CIELOS = [
+    [[0, 0xE2B7B0], [320, 0xF2CFB3], [520, 0xFBE8C6], [844, 0xF6DDB7]],
+    [[0, 0xB6A0DC], [420, 0xE3C6DA], [844, 0xF6D9C9]],
+    [[0, 0xE3F4EA], [500, 0xA9DCC4], [844, 0x6FB497]],
+    [[0, 0x0B0F2A], [500, 0x1E2454], [844, 0x3A3F7A]],
+  ];
+
+  return { catalogo, nivelArte, ANCHO_MAX, SUELO_INTRO, PAPEL, RUTA, ZONAS, CIELOS, TERRENO_Y };
 })();
