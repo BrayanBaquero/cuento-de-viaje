@@ -165,7 +165,8 @@ const Sonido = {
         this.barrido(560, 1120, 0.18, 'triangle', 0.09);
         this.tono(1760, 0.2, 'sine', 0.06, 0.06);
         break;
-      case 'pisar': this.barrido(520, 140, 0.18, 'square', 0.06); break;
+      case 'planear': this.barrido(900, 520, 0.35, 'sine', 0.05); break;
+      case 'mover': this.barrido(260, 180, 0.12, 'triangle', 0.08); break;
       case 'corazon':
         this.tono(1568, 0.08, 'triangle', 0.1);
         this.tono(2093, 0.14, 'triangle', 0.1, 0.06);
@@ -550,7 +551,7 @@ class Boot extends Phaser.Scene {
       const q = new URLSearchParams(location.search);
       const etapa = parseInt(q.get('etapa'), 10);
       const destino = etapa >= 1 && etapa <= 4 ? 'Etapa' + etapa
-        : ['Mapa', 'Cofre', 'Mini1', 'Mini2'].includes(q.get('escena')) ? q.get('escena') : 'Intro';
+        : ['Mapa', 'Cofre', 'Mini1', 'Mini2', 'Mini3', 'Mini4'].includes(q.get('escena')) ? q.get('escena') : 'Intro';
       this.scene.start(destino);
     });
   }
@@ -900,9 +901,12 @@ class Mapa extends Phaser.Scene {
  *    bloques:     [col, filaSuperior, ancho]  muros sólidos hasta el suelo
  *    plataformas: [col, fila, ancho]  plataformas que se atraviesan desde abajo
  *    moviles:     [col, fila, rango]  plataforma que va y viene `rango` columnas
+ *    luz:         [col, fila, desfase]  plataforma de luz (2 columnas) que se enciende y se apaga
+ *    avisoFarol:  texto que aparece al encender el primer farol
  *    obj: S inicio · m página del diario (recuerdo) · h luz · x zarza
  *         e sombra del olvido · f farol de piedra (control) · c cofre (meta)
- *  Salto máximo ≈ 3,5 filas de alto y 4,5 columnas de largo.
+ *  Salto máximo ≈ 3,5 filas de alto y 4,5 columnas de largo; con el salto de
+ *  pétalo ≈ 6 filas y 10 columnas. Planeando se cruzan huecos de 14 columnas.
  * ===================================================================== */
 const TILE = 40;
 const FILAS = 17;
@@ -931,31 +935,35 @@ const NIVELES = [
       ['h', 26, 8], ['h', 25, 3], ['h', 26, 3], ['f', 26, 14], ['m', 34, 14], ['x', 37, 14], ['e', 40, 14], ['f', 42, 14], ['m', 58, 14],
       ['x', 65, 14], ['h', 67, 11], ['h', 68, 11], ['h', 71, 8], ['c', 75, 14]],
   },
-  { // 3 · Nuestro lugar — bosque con plataformas móviles
-    ancho: 80,
-    suelo: [[0, 12], [15, 26], [34, 42], [47, 58], [66, 80]],
-    bloques: [[37, 12, 3], [74, 13, 2]],
-    plataformas: [[5, 12, 3], [17, 11, 3], [21, 8, 3], [43, 12, 2], [50, 12, 3], [54, 9, 3], [70, 12, 3]],
-    moviles: [[27, 14, 4], [59, 14, 4]],
-    obj: [['S', 2, 14], ['h', 6, 11], ['h', 7, 11], ['m', 8, 14], ['e', 19, 14], ['h', 22, 7],
-      ['h', 23, 7], ['f', 25, 14], ['m', 35, 14], ['h', 44, 11], ['e', 52, 14], ['h', 55, 8],
-      ['h', 56, 8], ['f', 57, 14], ['m', 68, 14], ['x', 72, 14], ['c', 77, 14]],
+  { // 3 · Nuestro lugar — estrena el planeo: desde lo alto de los troncos se cruzan claros anchos
+    ancho: 90,
+    suelo: [[0, 12], [15, 27], [41, 52], [60, 68], [80, 90]],
+    bloques: [[25, 9, 2], [66, 8, 2]],
+    plataformas: [[5, 12, 3], [17, 11, 3], [22, 12, 2], [44, 12, 3], [62, 12, 2]],
+    moviles: [[53, 14, 4]],
+    avisoFarol: 'Mantén el salto mientras caes para planear',
+    obj: [['S', 2, 14], ['h', 6, 11], ['h', 7, 11], ['m', 8, 14], ['h', 18, 10], ['h', 19, 10],
+      ['f', 20, 14], ['e', 16, 14], ['h', 29, 9], ['h', 32, 10], ['h', 35, 11], ['h', 38, 12],
+      ['m', 45, 14], ['e', 49, 14], ['x', 51, 14], ['f', 61, 14], ['h', 63, 11],
+      ['h', 70, 8], ['h', 72, 9], ['m', 74, 11], ['h', 76, 11], ['x', 83, 14], ['c', 87, 14]],
   },
-  { // 4 · Nuestro futuro — el reto final (sin pasarse)
-    ancho: 84,
-    suelo: [[0, 10], [13, 22], [26, 30], [34, 46], [52, 61], [68, 84]],
-    bloques: [[54, 13, 2], [56, 12, 2]],
-    plataformas: [[4, 12, 3], [15, 12, 2], [18, 9, 3], [23, 13, 2], [31, 12, 2], [38, 12, 3],
-      [42, 9, 3], [71, 12, 3], [75, 9, 3]],
-    moviles: [[47, 14, 3], [62, 14, 4]],
-    obj: [['S', 2, 14], ['h', 5, 11], ['h', 6, 11], ['m', 8, 14], ['e', 17, 14], ['h', 19, 8],
-      ['h', 20, 8], ['m', 36, 14], ['e', 40, 14], ['h', 43, 8], ['h', 44, 8],
-      ['f', 45, 14], ['f', 52, 14], ['m', 59, 14], ['e', 72, 14], ['h', 72, 11],
-      ['h', 76, 8], ['h', 77, 8], ['x', 79, 14], ['c', 81, 14]],
+  { // 4 · Nuestro futuro — combina todo: plataformas de luz, salto de pétalo y planeo
+    ancho: 92,
+    suelo: [[0, 10], [13, 22], [30, 40], [47, 56], [70, 80], [85, 92]],
+    bloques: [[34, 12, 2], [52, 8, 2]],
+    plataformas: [[4, 12, 3], [15, 12, 2], [18, 9, 3], [49, 12, 2], [72, 12, 3], [76, 9, 3]],
+    moviles: [[41, 14, 3]],
+    luz: [[23, 13, 0], [26, 12, 0.5], [62, 12, 0], [81, 12, 0.3]],
+    obj: [['S', 2, 14], ['h', 5, 11], ['h', 6, 11], ['m', 7, 14], ['e', 17, 14], ['h', 19, 8],
+      ['h', 20, 8], ['h', 24, 12], ['h', 27, 11], ['f', 31, 14], ['m', 38, 14], ['e', 33, 14],
+      ['f', 48, 14], ['x', 50, 14], ['h', 57, 8], ['h', 60, 9], ['m', 63, 10], ['h', 66, 11],
+      ['e', 74, 14], ['h', 73, 11], ['h', 77, 8], ['h', 78, 8], ['h', 82, 11], ['x', 87, 14], ['c', 89, 14]],
   },
 ];
 
-const FRASES_CAIDA = ['¡Uy! Aquí te atrapo', 'No pasa nada, otra vez', '¡Casi! Tú puedes'];
+const VEL_PLANEO = 115;   // caída máxima al planear (px/s)
+const CICLO_LUZ = 3600;   // ms de un ciclo de las plataformas de luz
+const FRASES_CAIDA =['¡Uy! Aquí te atrapo', 'No pasa nada, otra vez', '¡Casi! Tú puedes'];
 
 class Nivel extends Phaser.Scene {
   constructor(i) {
@@ -982,6 +990,10 @@ class Nivel extends Phaser.Scene {
     this.aterrizaje = 0;
     this.saltoPrevio = false;
     this.dobleSalto = i >= 1; // habilidad que se gana en la etapa II
+    this.planear = i >= 2;    // habilidad que se gana en la etapa III
+    this.planeando = false;
+    this.avisoMostrado = false;
+    this.reloj = 0;
     this.saltosAire = 0;
     this.enSueloPrevio = true;
     this.vyPrevia = 0;
@@ -1064,6 +1076,19 @@ class Nivel extends Phaser.Scene {
       m.setVelocityX(55);
     });
 
+    // Plataformas de luz: se encienden y se apagan en ciclo (se atraviesan desde abajo)
+    this.lucesPlat = this.physics.add.group(quietos);
+    (def.luz || []).forEach(([c, r, desfase]) => {
+      const p = this.lucesPlat.create(c * TILE + TILE, r * TILE + 13, 'losa_luz').setDepth(13);
+      p.halo = this.add.image(p.x, p.y, 'brillo').setTint(ORO).setScale(1.5, 0.8).setBlendMode('ADD').setDepth(12);
+      p.body.setSize(80, 18).setOffset(4, 2);
+      p.body.checkCollision.down = false;
+      p.body.checkCollision.left = false;
+      p.body.checkCollision.right = false;
+      p.desfase = desfase;
+      p.solida = true;
+    });
+
     // --- Angie ---
     this.jug = this.physics.add.sprite(inicio.x, inicio.y - 40, 'angie', 0).setScale(ESCALA_NIVEL).setDepth(20);
     this.jug.body.setSize(48, 130).setOffset(56, 54);
@@ -1074,6 +1099,7 @@ class Nivel extends Phaser.Scene {
     this.physics.world.setBoundsCollision(true, true, false, false);
     this.physics.add.collider(this.jug, this.capa);
     this.physics.add.collider(this.jug, this.moviles);
+    this.physics.add.collider(this.jug, this.lucesPlat);
     this.physics.add.overlap(this.jug, this.sombras, (j, e) => this.herir(e.x));
     this.physics.add.overlap(this.jug, this.zarzas, (j, z) => this.herir(z.x));
     this.physics.add.overlap(this.jug, this.luces, (j, l) => this.tomarLuz(l));
@@ -1214,9 +1240,14 @@ class Nivel extends Phaser.Scene {
         : 'Encuentra las 3 páginas del diario y llega al cofre\n← →  o  A D para moverte · Espacio para saltar', 15, tinta,
       { peso: '700', sombra, desenfoque: 8, interlineado: 4, ancho: 340 }),
     ];
-    if (i === 1) {
-      lineas.push(texto(this, W / 2, 372, 'Nueva habilidad: salto de pétalo\nEn el aire, salta otra vez', 18, hex(TINTA),
-        { serif: true, peso: 'italic 700', sombra: '#FFF6E2', desenfoque: 10, interlineado: 2 }));
+    const novedad = [null,
+      'Nueva habilidad: salto de pétalo\nEn el aire, salta otra vez',
+      TACTIL ? 'Nueva habilidad: planear con la capa\nMantén el botón de salto mientras caes'
+        : 'Nueva habilidad: planear con la capa\nMantén el salto mientras caes',
+      'Las plataformas de luz se apagan un momento:\nespera a que brillen y cruza'][i];
+    if (novedad) {
+      lineas.push(texto(this, W / 2, 372, novedad, 18, tinta,
+        { serif: true, peso: 'italic 700', sombra, desenfoque: 10, interlineado: 2, ancho: 360 }));
     }
     lineas.forEach((t) => t.setScrollFactor(0).setDepth(70).setAlpha(0));
     this.tweens.add({ targets: lineas, alpha: 1, duration: 500, delay: 300 });
@@ -1282,6 +1313,7 @@ class Nivel extends Phaser.Scene {
       e.setFlipX(e.dir > 0);
       e.setAlpha(e.alpha + ((cerca ? 0.55 : 0.95) - e.alpha) * 0.1);
     });
+    this.cicloLuces(dt);
 
     if (this.pausa || this.ganado || this.cayendo) return;
 
@@ -1316,6 +1348,15 @@ class Nivel extends Phaser.Scene {
     if (!ctl.salto && this.saltoPrevio && b.velocity.y < -200) b.setVelocityY(b.velocity.y * 0.45);
     this.saltoPrevio = ctl.salto;
 
+    // Planear con la capa: mantener el salto mientras cae frena la caída (desde la etapa III)
+    const planea = this.planear && ctl.salto && !enSuelo && b.velocity.y > 0;
+    if (planea && !this.planeando) {
+      Sonido.sfx('planear');
+      this.petalos.explode(5, this.jug.x, this.jug.y - 20);
+    }
+    this.planeando = planea;
+    b.setMaxVelocityY(planea ? VEL_PLANEO : 10000);
+
     // Aterrizaje: polvo y cuadro "aplastado"
     if (enSuelo && !this.enSueloPrevio && this.vyPrevia > 260) {
       this.aterrizaje = 90;
@@ -1330,14 +1371,15 @@ class Nivel extends Phaser.Scene {
     if (this.aterrizaje > 0) {
       this.aterrizaje -= dt;
     } else {
-      const estado = !enSuelo ? (b.velocity.y < 0 ? 'sube' : 'cae') : Math.abs(b.velocity.x) > 25 ? 'camina' : 'quieta';
+      const estado = !enSuelo ? (planea ? 'planea' : b.velocity.y < 0 ? 'sube' : 'cae')
+        : Math.abs(b.velocity.x) > 25 ? 'camina' : 'quieta';
       if (estado !== this.estado) {
         this.estado = estado;
         if (estado === 'camina') this.jug.play('angie_correr', true);
         else if (estado === 'quieta') this.jug.play('angie_quieta', true);
         else {
           this.jug.stop();
-          this.jug.setFrame(estado === 'sube' ? 8 : 9);
+          this.jug.setFrame({ sube: 8, cae: 9, planea: 13 }[estado]);
         }
       }
     }
@@ -1438,10 +1480,39 @@ class Nivel extends Phaser.Scene {
     });
   }
 
+  // Plataformas de luz: encendidas 2,4 s (las últimas 0,6 s parpadean) y apagadas 1,2 s.
+  cicloLuces(dt) {
+    if (!this.pausa) this.reloj += dt;
+    const bj = this.jug.body;
+    this.lucesPlat.getChildren().forEach((p) => {
+      const t = ((this.reloj / CICLO_LUZ + p.desfase) % 1) * CICLO_LUZ;
+      let solida = t < 2400;
+      if (solida && !p.solida) {
+        // No se enciende con Angie atravesándola: espera a que salga
+        const pb = p.body;
+        const dentro = bj.right > pb.left && bj.left < pb.right && bj.bottom > pb.top + 2 && bj.top < pb.bottom;
+        if (dentro) solida = false;
+      }
+      if (solida !== p.solida) {
+        p.solida = solida;
+        p.body.enable = solida;
+        if (solida) this.tweens.add({ targets: p, scaleX: { from: 0.6, to: 1 }, duration: 200, ease: 'Back.easeOut' });
+      }
+      const alfa = !solida ? 0.15 : t > 1800 ? (Math.floor(t / 90) % 2 ? 0.4 : 1) : 1;
+      p.setAlpha(alfa);
+      p.halo.setAlpha(alfa * 0.9);
+    });
+  }
+
   // Farol de piedra: punto de control
   encenderFarol(f) {
     if (f.encendido) return;
     f.encendido = true;
+    const def = NIVELES[this.i];
+    if (def.avisoFarol && !this.avisoMostrado) {
+      this.avisoMostrado = true;
+      aviso(this, W / 2, 250, def.avisoFarol, { duracion: 3600, tam: 18 });
+    }
     f.setTexture('faro_on');
     this.control = { x: f.x, y: f.y };
     Sonido.sfx('bandera');
@@ -1901,6 +1972,448 @@ class Mini2 extends Phaser.Scene {
   }
 }
 
+/* ---------- Minijuego 3 · El tablero del claro (ajedrez, mate en 2) ---------- */
+// Reglas mínimas para resaltar jugadas legales y validar la solución (sin enroque ni al paso).
+const Ajedrez = {
+  leer(fen) {
+    return fen.split(' ')[0].split('/').map((fila) => {
+      const casillas = [];
+      for (const ch of fila) {
+        if (/\d/.test(ch)) for (let k = 0; k < +ch; k++) casillas.push(null);
+        else casillas.push(ch);
+      }
+      return casillas;
+    });
+  },
+  blanca: (p) => !!p && p === p.toUpperCase(),
+  dentro: (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8,
+  uci(m) { return [8 - +m[1], m.charCodeAt(0) - 97, 8 - +m[3], m.charCodeAt(2) - 97]; },
+  aUci(r0, c0, r1, c1) { return String.fromCharCode(97 + c0) + (8 - r0) + String.fromCharCode(97 + c1) + (8 - r1); },
+
+  // Casillas a las que llega la pieza de (r, c). Con soloAtaques, los peones solo cuentan en diagonal.
+  destinos(t, r, c, soloAtaques = false) {
+    const p = t[r][c];
+    if (!p) return [];
+    const bl = this.blanca(p);
+    const tipo = p.toLowerCase();
+    const res = [];
+    const rival = (r2, c2) => this.dentro(r2, c2) && t[r2][c2] && this.blanca(t[r2][c2]) !== bl;
+    const libre = (r2, c2) => this.dentro(r2, c2) && !t[r2][c2];
+    const agregar = (r2, c2) => { if (libre(r2, c2) || rival(r2, c2)) res.push([r2, c2]); };
+    if (tipo === 'p') {
+      const d = bl ? -1 : 1;
+      [-1, 1].forEach((dc) => {
+        if (soloAtaques ? this.dentro(r + d, c + dc) : rival(r + d, c + dc)) res.push([r + d, c + dc]);
+      });
+      if (!soloAtaques && libre(r + d, c)) {
+        res.push([r + d, c]);
+        if (r === (bl ? 6 : 1) && libre(r + 2 * d, c)) res.push([r + 2 * d, c]);
+      }
+    } else if (tipo === 'n') {
+      [[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]].forEach(([a, b]) => agregar(r + a, c + b));
+    } else if (tipo === 'k') {
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) if (a || b) agregar(r + a, c + b);
+    } else {
+      const rectas = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      const diagonales = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+      const dirs = tipo === 'r' ? rectas : tipo === 'b' ? diagonales : rectas.concat(diagonales);
+      dirs.forEach(([a, b]) => {
+        for (let r2 = r + a, c2 = c + b; this.dentro(r2, c2); r2 += a, c2 += b) {
+          if (!t[r2][c2]) { res.push([r2, c2]); continue; }
+          if (rival(r2, c2)) res.push([r2, c2]);
+          break;
+        }
+      });
+    }
+    return res;
+  },
+
+  atacada(t, r, c, porBlancas) {
+    for (let r0 = 0; r0 < 8; r0++) {
+      for (let c0 = 0; c0 < 8; c0++) {
+        const p = t[r0][c0];
+        if (p && this.blanca(p) === porBlancas && this.destinos(t, r0, c0, true).some(([a, b]) => a === r && b === c)) return true;
+      }
+    }
+    return false;
+  },
+
+  enJaque(t, blancas) {
+    const rey = blancas ? 'K' : 'k';
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) if (t[r][c] === rey) return this.atacada(t, r, c, !blancas);
+    return false;
+  },
+
+  mover(t, r0, c0, r1, c1) {
+    const n = t.map((fila) => fila.slice());
+    let p = n[r0][c0];
+    if (p.toLowerCase() === 'p' && (r1 === 0 || r1 === 7)) p = this.blanca(p) ? 'Q' : 'q'; // coronación
+    n[r1][c1] = p;
+    n[r0][c0] = null;
+    return n;
+  },
+
+  legales(t, r, c) {
+    const bl = this.blanca(t[r][c]);
+    return this.destinos(t, r, c).filter(([r1, c1]) => !this.enJaque(this.mover(t, r, c, r1, c1), bl));
+  },
+
+  esMate(t, blancas) {
+    if (!this.enJaque(t, blancas)) return false;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = t[r][c];
+        if (p && this.blanca(p) === blancas && this.legales(t, r, c).length) return false;
+      }
+    }
+    return true;
+  },
+};
+
+class Mini3 extends Phaser.Scene {
+  constructor() { super('Mini3'); }
+
+  create() {
+    entrar(this);
+    hud(this).mostrarLlaves(true);
+    this.estado = 'intro';
+    fondoEtapa(this, 2);
+    particulasEtapa(this, 2).setDepth(5);
+
+    texto(this, W / 2, 112, 'El tablero del claro', 28, hex(TINTA), { serif: true, peso: 'italic 700', sombra: '#FFF6E2', desenfoque: 10 }).setDepth(61);
+    this.txtEstado = texto(this, W / 2, 146, 'Mate en 2 · juegan las piezas claras', 17, hex(TINTA), { peso: '700', sombra: '#FFF6E2', desenfoque: 8 }).setDepth(61);
+    botonCasa(this, () => this.estado !== 'fin');
+
+    // Tablero
+    this.lado = Math.min(W - 24, 560);
+    this.izq = W / 2 - this.lado / 2;
+    this.arriba = 180;
+    const tex = Arte.TABLERO;
+    const escala = this.lado / (tex.casilla * 8 + tex.borde * 2);
+    this.casilla = tex.casilla * escala;
+    this.margen = tex.borde * escala;
+    this.add.image(W / 2, this.arriba + this.lado / 2, 'tablero').setDisplaySize(this.lado, this.lado).setDepth(8);
+    this.marcas = this.add.graphics().setDepth(9);
+    this.puntos = this.add.graphics().setDepth(12);
+    this.piezas = [];
+    this.txtPista = texto(this, W / 2, this.arriba + this.lado + 34, '', 17, hex(CREMA),
+      { serif: true, peso: 'italic 700', ancho: Math.min(W - 40, 520), sombra: '#000000', desenfoque: 8 }).setDepth(61);
+
+    this.add.zone(this.izq + this.margen, this.arriba + this.margen, this.casilla * 8, this.casilla * 8)
+      .setOrigin(0).setDepth(13).setInteractive({ useHandCursor: true })
+      .on('pointerup', (p) => {
+        const c = Math.floor((p.x - this.izq - this.margen) / this.casilla);
+        const r = Math.floor((p.y - this.arriba - this.margen) / this.casilla);
+        if (Ajedrez.dentro(r, c)) this.tocar(r, c);
+      });
+
+    this.reiniciar();
+    tarjetaMensaje(this, 'El tablero del claro',
+      'Juegas con las piezas claras. Da jaque mate en 2 jugadas: toca una pieza para ver a dónde puede ir y luego toca su destino. Las oscuras responden solas.',
+      'Empezar', () => { this.estado = 'juego'; });
+  }
+
+  centro(r, c) {
+    return [this.izq + this.margen + (c + 0.5) * this.casilla, this.arriba + this.margen + (r + 0.5) * this.casilla];
+  }
+
+  reiniciar() {
+    this.t = Ajedrez.leer(CFG.ajedrez.fen);
+    this.paso = 0;
+    this.sel = null;
+    this.bloqueado = false;
+    this.pintarPiezas();
+    this.pintarMarcas();
+  }
+
+  pintarPiezas() {
+    this.piezas.forEach((p) => p.destroy());
+    this.piezas = [];
+    const escala = (this.casilla * 0.92) / 128;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = this.t[r][c];
+        if (!p) continue;
+        const [x, y] = this.centro(r, c);
+        const img = this.add.image(x, y, 'pieza_' + (Ajedrez.blanca(p) ? 'w' : 'b') + p.toLowerCase()).setScale(escala).setDepth(11);
+        img.casilla = [r, c];
+        this.piezas.push(img);
+      }
+    }
+  }
+
+  pintarMarcas() {
+    const q = this.casilla;
+    this.marcas.clear();
+    this.puntos.clear();
+    if (!this.sel) return;
+    const [r, c] = this.sel;
+    const [x, y] = this.centro(r, c);
+    this.marcas.fillStyle(ORO, 0.45).fillRect(x - q / 2, y - q / 2, q, q);
+    this.marcas.lineStyle(3, ORO, 1).strokeRect(x - q / 2 + 1.5, y - q / 2 + 1.5, q - 3, q - 3);
+    this.legales.forEach(([r1, c1]) => {
+      const [x1, y1] = this.centro(r1, c1);
+      if (this.t[r1][c1]) {
+        this.puntos.lineStyle(3.5, ORO, 1).strokeCircle(x1, y1, q * 0.44);
+      } else {
+        this.puntos.fillStyle(0x140C12, 0.35).fillCircle(x1, y1 + 2, q * 0.15);
+        this.puntos.fillStyle(ORO, 1).fillCircle(x1, y1, q * 0.14);
+      }
+    });
+  }
+
+  tocar(r, c) {
+    if (this.estado !== 'juego' || this.bloqueado) return;
+    const p = this.t[r][c];
+    if (this.sel && this.legales.some(([a, b]) => a === r && b === c)) {
+      this.jugar(this.sel[0], this.sel[1], r, c);
+      return;
+    }
+    if (p && Ajedrez.blanca(p) && !(this.sel && this.sel[0] === r && this.sel[1] === c)) {
+      this.sel = [r, c];
+      this.legales = Ajedrez.legales(this.t, r, c);
+      Sonido.sfx('tap');
+    } else {
+      this.sel = null;
+    }
+    this.pintarMarcas();
+  }
+
+  // Desliza la pieza y actualiza el tablero; alTerminar se llama al acabar la animación.
+  animar(r0, c0, r1, c1, alTerminar) {
+    const img = this.piezas.find((p) => p.casilla[0] === r0 && p.casilla[1] === c0);
+    const victima = this.piezas.find((p) => p.casilla[0] === r1 && p.casilla[1] === c1);
+    this.t = Ajedrez.mover(this.t, r0, c0, r1, c1);
+    const [x, y] = this.centro(r1, c1);
+    if (victima) this.tweens.add({ targets: victima, alpha: 0, scale: victima.scale * 0.6, duration: 220 });
+    img.setDepth(14);
+    this.tweens.add({
+      targets: img, x, y, duration: 260, ease: 'Sine.easeInOut',
+      onComplete: () => {
+        Sonido.sfx('mover');
+        this.pintarPiezas();
+        alTerminar();
+      },
+    });
+  }
+
+  jugar(r0, c0, r1, c1) {
+    const jugada = Ajedrez.aUci(r0, c0, r1, c1);
+    const sol = CFG.ajedrez.solucion;
+    this.sel = null;
+    this.pintarMarcas();
+    this.bloqueado = true;
+    this.animar(r0, c0, r1, c1, () => {
+      const ultima = this.paso + 2 >= sol.length;
+      const mate = Ajedrez.esMate(this.t, false);
+      if (mate || (!ultima && jugada === sol[this.paso])) {
+        if (mate) { this.ganar(); return; }
+        // Respuesta automática de las oscuras
+        this.time.delayedCall(450, () => {
+          const [a, b, c, d] = Ajedrez.uci(sol[this.paso + 1]);
+          this.animar(a, b, c, d, () => {
+            this.paso += 2;
+            this.bloqueado = false;
+            this.txtEstado.setText('¡Bien! Ahora da el jaque mate');
+          });
+        });
+        return;
+      }
+      Sonido.sfx('error');
+      this.cameras.main.shake(140, 0.004);
+      this.time.delayedCall(500, () => {
+        this.estado = 'pausa';
+        tarjetaMensaje(this, '¡Casi!', 'Esa jugada no lleva al mate.\n\n' + CFG.ajedrez.pista, 'Otra vez', () => {
+          this.reiniciar();
+          this.txtEstado.setText('Mate en 2 · juegan las piezas claras');
+          this.txtPista.setText(CFG.ajedrez.pista);
+          this.estado = 'juego';
+        });
+      });
+    });
+  }
+
+  ganar() {
+    this.estado = 'fin';
+    Sonido.sfx('acierto');
+    this.txtEstado.setText('¡Jaque mate!');
+    const rey = this.piezas.find((p) => this.t[p.casilla[0]][p.casilla[1]] === 'k');
+    if (rey) {
+      const brillo = this.add.image(rey.x, rey.y, 'brillo').setTint(0xF2A7B5).setScale(0.6).setBlendMode('ADD').setDepth(10);
+      this.tweens.add({ targets: brillo, scale: 1.6, alpha: 0.4, duration: 500, yoyo: true, repeat: 1 });
+      this.tweens.add({ targets: rey, angle: 80, alpha: 0.5, duration: 700, delay: 300, ease: 'Sine.easeIn' });
+    }
+    this.time.delayedCall(900, () => ganarLlave(this, 2, W / 2, this.arriba + this.lado / 2, '¡Jaque mate!'));
+  }
+}
+
+/* ---------- Minijuego 4 · El vitral de las ruinas (rompecabezas deslizante 3×3) ---------- */
+const MEZCLA_VITRAL = 30;
+
+class Mini4 extends Phaser.Scene {
+  constructor() { super('Mini4'); }
+
+  create() {
+    entrar(this);
+    hud(this).mostrarLlaves(true);
+    this.estado = 'intro';
+    fondoEtapa(this, 3);
+    particulasEtapa(this, 3).setDepth(5);
+
+    texto(this, W / 2, 112, 'El vitral de las ruinas', 28, hex(CREMA), { serif: true, peso: 'italic 700', sombra: '#000000', desenfoque: 10 }).setDepth(61);
+    this.txtMov = texto(this, W / 2, 146, '', 17, hex(CREMA), { peso: '700', sombra: '#000000', desenfoque: 8 }).setDepth(61);
+    botonCasa(this, () => this.estado !== 'fin');
+
+    // Ventana de piedra
+    const V = Arte.VITRAL;
+    const e = Math.min(1, (W - 24) / V.w, 580 / V.h);
+    const arriba = 172;
+    this.add.image(W / 2, arriba, 'ventana').setOrigin(0.5, 0).setScale(e).setDepth(8);
+    this.lado = V.lado * e;
+    this.izq = W / 2 - (V.w * e) / 2 + V.x * e;
+    this.arriba = arriba + V.y * e;
+    this.T = this.lado / 3;
+
+    // Imagen: la foto (recortada al centro, cuadrada) o el vitral de reemplazo
+    const ruta = CFG.rompecabezas.foto;
+    if (ruta && this.textures.exists('foto:' + ruta)) {
+      const src = this.textures.get('foto:' + ruta).getSourceImage();
+      const lado = Math.min(src.width, src.height);
+      this.fuente = { clave: 'foto:' + ruta, sx: (src.width - lado) / 2, sy: (src.height - lado) / 2, lado };
+    } else {
+      this.fuente = { clave: 'vitral', sx: 0, sy: 0, lado: V.lado };
+    }
+
+    this.vidrios = [];
+    for (let id = 0; id < 9; id++) this.vidrios.push(this.crearVidrio(id));
+    this.vidrios[8].setVisible(false); // el hueco
+
+    this.btnVer = boton(this, W / 2, arriba + V.h * e + 46, 'Ver vitral', () => this.verReferencia(),
+      { estilo: 'secundario', ancho: 200, alto: 52, tam: 24 }).setDepth(60);
+
+    if (this.input.keyboard) {
+      // Las flechas mueven hacia el hueco el vidrio que está del lado opuesto
+      [['LEFT', 0, 1], ['RIGHT', 0, -1], ['UP', 1, 0], ['DOWN', -1, 0]].forEach(([tecla, dr, dc]) => {
+        this.input.keyboard.on('keydown-' + tecla, () => {
+          const h = this.orden.indexOf(8);
+          const r = Math.floor(h / 3) + dr;
+          const c = (h % 3) + dc;
+          if (r >= 0 && r < 3 && c >= 0 && c < 3) this.tocar(this.orden[r * 3 + c]);
+        });
+      });
+    }
+
+    this.mezclar();
+    tarjetaMensaje(this, 'El vitral de las ruinas',
+      'Los vidrios de la ventana se desordenaron. Toca un vidrio junto al hueco para deslizarlo y recompón la imagen.' +
+      (TACTIL ? '' : ' También puedes usar las flechas.') + '\n\n"Ver vitral" te muestra la imagen completa 3 segundos.',
+      'Empezar', () => { this.estado = 'juego'; });
+  }
+
+  posicion(k) {
+    return [this.izq + (k % 3 + 0.5) * this.T, this.arriba + (Math.floor(k / 3) + 0.5) * this.T];
+  }
+
+  crearVidrio(id) {
+    const T = this.T;
+    const f = this.fuente;
+    const cw = f.lado / 3;
+    const cx = f.sx + (id % 3) * cw;
+    const cy = f.sy + Math.floor(id / 3) * cw;
+    const s = T / cw;
+    const c = this.add.container(0, 0).setDepth(10);
+    const img = this.add.image(-T / 2 - cx * s, -T / 2 - cy * s, f.clave).setOrigin(0).setScale(s).setCrop(cx, cy, cw, cw);
+    const plomo = this.add.graphics();
+    plomo.lineStyle(4, 0x141833, 1).strokeRect(-T / 2, -T / 2, T, T);
+    plomo.lineStyle(1.2, ORO, 0.45).strokeRect(-T / 2 + 4, -T / 2 + 4, T - 8, T - 8);
+    c.add([img, plomo]);
+    c.setSize(T, T).setInteractive({ useHandCursor: true });
+    c.on('pointerup', () => this.tocar(id));
+    c.id = id;
+    return c;
+  }
+
+  // Mezcla con movimientos válidos desde la posición resuelta: siempre tiene solución.
+  mezclar() {
+    do {
+      this.orden = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+      let previo = -1;
+      for (let n = 0; n < MEZCLA_VITRAL; n++) {
+        const h = this.orden.indexOf(8);
+        const vecinos = this.vecinos(h).filter((k) => k !== previo);
+        const k = Phaser.Utils.Array.GetRandom(vecinos);
+        [this.orden[h], this.orden[k]] = [this.orden[k], this.orden[h]];
+        previo = h;
+      }
+    } while (this.resuelto());
+    this.movimientos = 0;
+    this.actualizar();
+    this.orden.forEach((id, k) => this.vidrios[id].setPosition(...this.posicion(k)));
+  }
+
+  vecinos(k) {
+    const r = Math.floor(k / 3);
+    const c = k % 3;
+    return [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]]
+      .filter(([a, b]) => a >= 0 && a < 3 && b >= 0 && b < 3).map(([a, b]) => a * 3 + b);
+  }
+
+  resuelto() { return this.orden.every((id, k) => id === k); }
+
+  actualizar() { this.txtMov.setText(`Movimientos: ${this.movimientos}`); }
+
+  tocar(id) {
+    if (this.estado !== 'juego' || this.viendo) return;
+    const k = this.orden.indexOf(id);
+    const h = this.orden.indexOf(8);
+    if (!this.vecinos(h).includes(k)) {
+      this.tweens.add({ targets: this.vidrios[id], angle: { from: -3, to: 3 }, duration: 50, yoyo: true, repeat: 1, onComplete: () => this.vidrios[id].setAngle(0) });
+      return;
+    }
+    [this.orden[h], this.orden[k]] = [this.orden[k], this.orden[h]];
+    this.movimientos++;
+    this.actualizar();
+    Sonido.sfx('mover');
+    const [x, y] = this.posicion(h);
+    this.tweens.add({ targets: this.vidrios[id], x, y, duration: 130, ease: 'Sine.easeOut' });
+    this.vidrios[8].setPosition(...this.posicion(k));
+    if (this.resuelto()) this.ganar();
+  }
+
+  verReferencia() {
+    if (this.estado !== 'juego' || this.viendo) return;
+    this.viendo = true;
+    const cx = this.izq + this.lado / 2;
+    const cy = this.arriba + this.lado / 2;
+    const ruta = CFG.rompecabezas.foto;
+    const ref = this.fuente.clave === 'vitral'
+      ? this.add.image(cx, cy, 'vitral').setDisplaySize(this.lado, this.lado)
+      : foto(this, cx, cy, this.lado, this.lado, ruta);
+    ref.setDepth(20).setAlpha(0);
+    this.tweens.add({ targets: ref, alpha: 1, duration: 200 });
+    this.tweens.add({
+      targets: ref, alpha: 0, duration: 300, delay: 3000,
+      onComplete: () => { ref.destroy(); this.viendo = false; },
+    });
+  }
+
+  ganar() {
+    this.estado = 'fin';
+    this.btnVer.setVisible(false);
+    const hueco = this.vidrios[8];
+    hueco.setVisible(true).setAlpha(0);
+    this.tweens.add({ targets: hueco, alpha: 1, duration: 500, delay: 200 });
+    const cx = this.izq + this.lado / 2;
+    const cy = this.arriba + this.lado / 2;
+    // El vitral se ilumina
+    const luz = this.add.image(cx, cy, 'brillo').setTint(0xFFE7A8).setScale(1).setAlpha(0).setBlendMode('ADD').setDepth(15);
+    this.tweens.add({ targets: luz, scale: this.lado / 40, alpha: 0.85, duration: 900, ease: 'Sine.easeOut' });
+    this.tweens.add({ targets: luz, alpha: 0.45, duration: 900, delay: 900, yoyo: true, repeat: -1 });
+    Sonido.sfx('acierto');
+    this.time.delayedCall(1000, () => ganarLlave(this, 3, cx, cy, '¡El vitral se ilumina!'));
+  }
+}
+
 /* =====================================================================
  *  Cofre final (provisional hasta la fase 4)
  * ===================================================================== */
@@ -1941,7 +2454,7 @@ window.juego = new Phaser.Game({
   scene: [
     Boot, Intro, Mapa,
     new Nivel(0), new Nivel(1), new Nivel(2), new Nivel(3),
-    Mini1, Mini2,
+    Mini1, Mini2, Mini3, Mini4,
     CofrePendiente, HUD,
   ],
 });

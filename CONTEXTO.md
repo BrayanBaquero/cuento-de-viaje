@@ -48,37 +48,21 @@
 | Fase | Contenido | Rama | Estado |
 |---|---|---|---|
 | 1 | Rediseño visual: Angie con animaciones, portada, mapa en pergamino, HUD, PC, 4 niveles ilustrados con zarzas, sombras, faroles y páginas de diario | `fase-1/base-visual` | Hecha, sin PR |
-| 2 | Salto de pétalo (doble salto) desde la etapa II; minijuego 1 (frasco de los recuerdos) y 2 (naipes del farol) dentro de los cofres | `fase-2/etapas-1-2` (sale de la fase 1) | Hecha, sin PR, **rama actual** |
-| 3 | Etapas III y IV | — | **Siguiente** |
+| 2 | Salto de pétalo (doble salto) desde la etapa II; minijuego 1 (frasco de los recuerdos) y 2 (naipes del farol) dentro de los cofres | `fase-2/etapas-1-2` (sale de la fase 1) | Hecha, sin PR |
+| 3 | Planear con la capa (etapa III), plataformas de luz (etapa IV), niveles III y IV rediseñados; minijuego 3 (tablero del claro, ajedrez) y 4 (vitral, rompecabezas) | `fase-3/etapas-3-4` (sale de la fase 2) | Hecha, sin PR, **rama actual** |
 | 4 | Cofre final, trivia, pergamino, propuesta, música, pulido | — | Pendiente |
 
 `main` solo tiene el estado inicial (prototipo v1 + propuesta).
 
 ## 4. Qué falta
 
-### Fase 3 (siguiente)
+### Fase 3 (hecha)
 
-- **Planear con la capa (etapa III):**
-  - Al mantener el salto mientras se cae, la caída es lenta.
-  - Se gana en la III y se conserva en la IV, junto con el doble salto (`this.dobleSalto = i >= 1`).
-  - Se presenta en `cartelInicial`, igual que el salto de pétalo.
-  - Hay que ajustar `NIVELES[2]` para que lo use, sin volverlo frustrante.
-- **Etapa IV:**
-  - Combina las habilidades anteriores.
-  - Agrega plataformas de luz que aparecen y desaparecen (opción ★ de la propuesta).
-- **Minijuego 3, ajedrez** (cofre de la III):
-  - Apariencia: tablero de piedra en el claro del bosque, con piezas talladas.
-  - Mate en 2 con `CFG.ajedrez.fen` y `CFG.ajedrez.solucion`, en formato UCI de 3 jugadas.
-  - Tocar una pieza resalta sus movimientos legales; tocar el destino la mueve.
-  - La respuesta del rival es automática.
-  - Basta con validar la secuencia de la solución, sin motor de ajedrez. Aun así hay que calcular los movimientos legales de la pieza tocada para resaltarlos.
-  - Si falla, la posición se reinicia y aparece `CFG.ajedrez.pista`.
-- **Minijuego 4, rompecabezas deslizante 3×3** (cofre de la IV):
-  - Apariencia: vitral de una ventana en ruinas que se ilumina al resolverlo.
-  - La foto viene de `CFG.rompecabezas.foto`; si falta, se dibuja un vitral de reemplazo.
-  - Se mezcla con unos 30 movimientos aleatorios desde la posición resuelta, para que siempre tenga solución.
-  - Un botón muestra la referencia durante 3 s.
-- **Registro:** agregar `Mini3` y `Mini4` a la lista de escenas del juego y a los atajos de prueba en `Boot`. El cofre de cada nivel ya abre `Mini(i+1)` automáticamente si la escena existe (ver `llegarCofre`).
+- **Planear:** mantener el salto mientras cae limita la caída a `VEL_PLANEO` (cuadro 13 de Angie). Activo desde la etapa III (`this.planear = i >= 2`). Con salto simple + planeo se cruza el claro de 14 columnas de la etapa III; sin planear no.
+- **Plataformas de luz** (`luz` en `NIVELES`, ciclo `CICLO_LUZ`): encendidas 2,4 s (parpadean al final) y apagadas 1,2 s; no se encienden con Angie dentro.
+- **`avisoFarol`** en un nivel: texto que aparece al encender el primer farol (lo usa la etapa III para recordar el planeo).
+- **Minijuego 3 (`Mini3`):** módulo `Ajedrez` con jugadas legales (sin enroque ni al paso, corona a dama). Acepta la 1.ª jugada de `CFG.ajedrez.solucion` y como 2.ª cualquier jugada que dé mate.
+- **Minijuego 4 (`Mini4`):** 30 movimientos de mezcla, flechas en PC, botón "Ver vitral" (3 s). Sin foto usa la textura `vitral`.
 
 ### Fase 4
 
@@ -117,11 +101,11 @@
 - Tamaño adaptable (`W` variable y `H = 844`; `aplicarTamano` solo entre escenas).
 - `Guardado` (localStorage) y `Sonido` (Web Audio).
 - Utilidades: `texto`, `boton`, `aviso`, `foto`, `tarjetaMensaje`, `botonCasa`, `ganarLlave`, `fondoEtapa`.
-- Escenas: `Boot`, `HUD` (siempre encima), `Intro`, `Mapa`, `Nivel` (una instancia por etapa: `Etapa1`..`Etapa4`), `Mini1`, `Mini2`, `CofrePendiente`.
+- Escenas: `Boot`, `HUD` (siempre encima), `Intro`, `Mapa`, `Nivel` (una instancia por etapa: `Etapa1`..`Etapa4`), `Mini1`..`Mini4`, `CofrePendiente`.
 
 **Cómo están hechos los niveles:**
 - Los niveles se diseñan en la tabla `NIVELES`, con una cuadrícula de 40 px y el suelo a y = 600. La cuadrícula de colisión es invisible: lo que se ve es el terreno SVG generado a partir de la misma tabla.
-- **Física:** gravedad 1500 y salto de −660 (≈145 px de alto y 4,5 columnas). El doble salto da −580 extra.
+- **Física:** gravedad 1500 y salto de −660 (≈145 px de alto y 4,5 columnas). El doble salto da −580 extra. Planeando la caída se limita a 115 px/s.
 - **Ayudas al jugador:**
   - Margen para saltar justo después de salir del borde (`coyote`).
   - Salto memorizado si se toca un instante antes de aterrizar (`buffer`).
@@ -142,7 +126,7 @@ En `.claude/launch.json` está configurado como `juego` en el puerto 5173 (el 80
 |---|---|
 | `?reset` | Borra el progreso |
 | `?etapa=N` | Abre ese nivel |
-| `?escena=Mapa`, `Mini1`, `Mini2`, `Cofre` | Abre esa escena |
+| `?escena=Mapa`, `Mini1`..`Mini4`, `Cofre` | Abre esa escena |
 | `?auto` | Salta las tarjetas de instrucciones y derrota |
 | `?captura` | Sin fundidos (para capturas) |
 | `?diario` | Abre la primera página del diario |

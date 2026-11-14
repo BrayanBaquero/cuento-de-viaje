@@ -29,7 +29,7 @@ Abre `http://localhost:5173`. Si agregas `?reset` al final de la dirección, el 
 |---|---|
 | `?reset` | Borra el progreso guardado |
 | `?etapa=1..4` | Abre directamente un nivel |
-| `?escena=Mapa`, `Mini1`, `Mini2`, `Cofre` | Abre directamente esa escena |
+| `?escena=Mapa`, `Mini1`, `Mini2`, `Mini3`, `Mini4`, `Cofre` | Abre directamente esa escena |
 | `?auto` | Salta las tarjetas de instrucciones y de derrota |
 | `?captura` | Sin fundidos ni animaciones de entrada (para capturas) |
 | `?diario` | Muestra la primera página del diario al entrar a un nivel |

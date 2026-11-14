@@ -149,7 +149,7 @@ const Arte = (() => {
   /* =====================================================================
    *  Angie — hoja de animación (13 cuadros de 80×96, a 2× de resolución)
    *  0-1 respirar · 2-7 correr · 8 subir · 9 caer · 10 aterrizar
-   *  11 celebrar · 12 parpadeo. Mira a la derecha; pies en (40, 92).
+   *  11 celebrar · 12 parpadeo · 13 planear. Mira a la derecha; pies en (40, 92).
    * ===================================================================== */
   const CUADRO = { w: 80, h: 96, pies: 92, escala: 2 };
 
@@ -242,6 +242,7 @@ const Arte = (() => {
     poses.push({ sx: 1.14, sy: 0.86, pl: -14, pr: 14, capa: 2, capaY: -1, buf: [0, 3] }); // 10 aterrizar
     poses.push({ y: -3, sy: 1.04, arriba: true, ojos: 'feliz', capa: 2, capaY: 2, buf: [-2, -3], trenza: 0.8 }); // 11 celebrar
     poses.push({ ojos: 'cerrados' }); // 12 parpadeo
+    poses.push({ y: -2, sy: 0.97, sx: 1.04, pl: -18, pr: 10, ll: -3, capa: 17, capaY: -11, buf: [-9, -12], trenza: -2, farol: [-1, -3] }); // 13 planear
     let s = '';
     poses.forEach((p, i) => { s += `<g transform="translate(${i * CUADRO.w + CUADRO.w / 2},${CUADRO.pies})">${poseAngie(p)}</g>`; });
     const d = doc(CUADRO.w * poses.length, CUADRO.h, s, '', CUADRO.escala);
@@ -905,6 +906,134 @@ const Arte = (() => {
     return doc(120, 160, s);
   }
 
+  /* ---------- Etapa IV: plataforma de luz (aparece y desaparece) ---------- */
+  function losaLuz() {
+    const s = `<ellipse cx="44" cy="14" rx="44" ry="14" fill="url(#glowGold)" opacity=".7"/>` +
+      `<path d="M6,9 L10,4 L78,4 L82,9 L74,17 L44,22 L14,17 Z" fill="#F5C26B" fill-opacity=".85" stroke="#FFF1D6" stroke-width="2" stroke-linejoin="round"/>` +
+      `<path d="M10,4 L78,4" stroke="#FFF6DE" stroke-width="2.4"/>` +
+      estrella4(28, 11, 3.5, '#FFF6DE') + estrella4(60, 11, 3.5, '#FFF6DE') + `<circle cx="44" cy="11" r="2.2" fill="#FFFFFF"/>`;
+    return doc(88, 28, s);
+  }
+
+  /* ---------- Minijuego 3: tablero de piedra en el claro del bosque ---------- */
+  const TABLERO = { casilla: 64, borde: 28 };
+
+  function tablero() {
+    semilla(91);
+    const { casilla: q, borde: m } = TABLERO;
+    const lado = q * 8 + m * 2;
+    let s = `<rect x="4" y="10" width="${lado - 8}" height="${lado - 8}" rx="18" fill="#000" opacity=".45" filter="url(#b8)"/>`;
+    s += `<rect x="2" y="2" width="${lado - 4}" height="${lado - 4}" rx="16" fill="url(#losaPiedra)" stroke="${INK}" stroke-width="3"/>`;
+    // Musgo en los bordes
+    for (let k = 0; k < 26; k++) {
+      const lado4 = k % 4, t = rnd(30, lado - 30);
+      const [x, y] = [[t, 10], [lado - 10, t], [t, lado - 10], [10, t]][lado4];
+      s += `<ellipse cx="${f(x)}" cy="${f(y)}" rx="${f(rnd(6, 16))}" ry="${f(rnd(3, 7))}" fill="#7FC09F" opacity="${f(rnd(0.35, 0.7))}"/>`;
+    }
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const clara = (r + c) % 2 === 0;
+        const x = m + c * q, y = m + r * q;
+        s += `<rect x="${x}" y="${y}" width="${q}" height="${q}" fill="${clara ? '#D7E6DA' : '#5E8F7A'}"/>`;
+        // Vetas de la piedra
+        s += `<path d="M${f(x + rnd(4, 20))},${f(y + rnd(10, 54))} q${f(rnd(10, 20))},${f(rnd(-6, 6))} ${f(rnd(24, 40))},${f(rnd(-4, 4))}" stroke="${clara ? '#9DB8A6' : '#3E6B5A'}" stroke-width="1" opacity=".6" fill="none"/>`;
+      }
+    }
+    s += `<rect x="${m}" y="${m}" width="${q * 8}" height="${q * 8}" fill="none" stroke="${INK}" stroke-width="2.5"/>`;
+    // Coordenadas talladas
+    'abcdefgh'.split('').forEach((l, c) => {
+      s += `<text x="${m + c * q + q / 2}" y="${lado - 8}" font-family="Georgia, serif" font-size="15" font-weight="700" fill="#E3F4EA" opacity=".8" text-anchor="middle">${l}</text>`;
+    });
+    for (let r = 0; r < 8; r++) {
+      s += `<text x="${m / 2}" y="${m + r * q + q / 2 + 5}" font-family="Georgia, serif" font-size="15" font-weight="700" fill="#E3F4EA" opacity=".8" text-anchor="middle">${8 - r}</text>`;
+    }
+    return doc(lado, lado, s, lg('losaPiedra', [[0, '#4E8C75'], [1, '#1F4F45']]));
+  }
+
+  // Piezas talladas en piedra: claras (crema) u oscuras (pizarra). 64×64.
+  function pieza(tipo, blanca) {
+    const relleno = blanca ? '#F1E8D2' : '#2E3A44';
+    const luz = blanca ? '#FFFFFF' : '#7F8FA0';
+    const t = `fill="${relleno}" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"`;
+    const base = `<path d="M14,58 L50,58 L48,51 L16,51 Z" ${t}/><path d="M18,51 Q32,47 46,51" stroke="${luz}" stroke-width="1.2" opacity=".5" fill="none"/>`;
+    let s = '';
+    if (tipo === 'p') {
+      s = `<path d="M22,51 Q24,38 28,34 Q22,30 24,23 Q27,15 32,15 Q37,15 40,23 Q42,30 36,34 Q40,38 42,51 Z" ${t}/>`;
+    } else if (tipo === 'r') {
+      s = `<path d="M19,51 L22,24 L18,24 L18,12 L24,12 L24,17 L29,17 L29,12 L35,12 L35,17 L40,17 L40,12 L46,12 L46,24 L42,24 L45,51 Z" ${t}/><path d="M22,30 H42" stroke="${INK}" stroke-width="1.4" opacity=".5"/>`;
+    } else if (tipo === 'n') {
+      s = `<path d="M18,51 Q20,40 28,35 Q22,33 16,36 Q12,32 15,27 Q22,16 30,11 L31,7 L35,12 Q46,16 47,32 Q48,43 46,51 Z" ${t}/><circle cx="27" cy="21" r="2" fill="${INK}"/><path d="M33,14 Q42,20 42,34" stroke="${luz}" stroke-width="1.4" opacity=".55" fill="none"/>`;
+    } else if (tipo === 'b') {
+      s = `<path d="M21,51 Q22,40 27,36 Q20,30 23,21 Q27,12 32,9 Q37,12 41,21 Q44,30 37,36 Q42,40 43,51 Z" ${t}/><path d="M35,16 L29,26" stroke="${INK}" stroke-width="2"/><circle cx="32" cy="7" r="3" ${t}/>`;
+    } else if (tipo === 'q') {
+      s = `<path d="M19,51 Q21,38 24,32 L15,14 L25,22 L32,9 L39,22 L49,14 L40,32 Q43,38 45,51 Z" ${t}/>` +
+        [[15, 13], [32, 8], [49, 13]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3" ${t}/>`).join('');
+    } else {
+      s = `<path d="M19,51 Q21,37 25,31 Q18,26 20,19 L44,19 Q46,26 39,31 Q43,37 45,51 Z" ${t}/><path d="M32,5 V17 M27,10 H37" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M32,5 V17 M27,10 H37" stroke="${relleno}" stroke-width="2.4" stroke-linecap="round"/>`;
+    }
+    return doc(64, 64, `<ellipse cx="32" cy="58" rx="20" ry="4" fill="#000" opacity=".3"/>` + base + s, '', 2);
+  }
+
+  /* ---------- Minijuego 4: vitral de una ventana en ruinas ---------- */
+  const VITRAL = { lado: 360, x: 40, y: 150, w: 440, h: 550 };
+
+  // Marco de piedra con arco y rosetón (el rompecabezas va en el hueco cuadrado)
+  function ventana() {
+    semilla(61);
+    const { lado, x: px, y: py, w, h } = VITRAL;
+    const cx = w / 2;
+    let s = `<path d="M10,${h} V150 A${cx - 10},140 0 0 1 ${w - 10},150 V${h} Z" fill="#000" opacity=".45" filter="url(#b8)" transform="translate(4,10)"/>`;
+    s += `<path d="M10,${h - 4} V150 A${cx - 10},140 0 0 1 ${w - 10},150 V${h - 4} Z" fill="url(#piedraVentana)" stroke="${INK}" stroke-width="3"/>`;
+    // Rosetón del arco
+    s += `<circle cx="${cx}" cy="86" r="52" fill="#1A1E42" stroke="${INK}" stroke-width="3"/>`;
+    const colores = ['#7FE0C2', '#F5C26B', '#B59CFF', '#F2A7B5', '#9EC5F2'];
+    for (let k = 0; k < 10; k++) {
+      const a0 = (k / 10) * Math.PI * 2, a1 = ((k + 1) / 10) * Math.PI * 2;
+      s += `<path d="M${cx},86 L${f(cx + Math.cos(a0) * 46)},${f(86 + Math.sin(a0) * 46)} A46,46 0 0 1 ${f(cx + Math.cos(a1) * 46)},${f(86 + Math.sin(a1) * 46)} Z" fill="${colores[k % 5]}" opacity=".55" stroke="#20264F" stroke-width="2.5"/>`;
+    }
+    s += `<circle cx="${cx}" cy="86" r="14" fill="#F5C26B" stroke="#20264F" stroke-width="2.5"/>`;
+    // Hueco del vitral
+    s += `<rect x="${px - 8}" y="${py - 8}" width="${lado + 16}" height="${lado + 16}" rx="4" fill="#0D1028" stroke="${INK}" stroke-width="3"/>`;
+    // Grietas y musgo
+    for (let k = 0; k < 7; k++) {
+      const gx = rnd(16, w - 16), gy = rnd(160, h - 20);
+      if (gx > px - 10 && gx < px + lado + 10 && gy > py - 10 && gy < py + lado + 10) continue;
+      s += `<path d="M${f(gx)},${f(gy)} l${f(rnd(-10, 10))},${f(rnd(8, 18))} l${f(rnd(-8, 8))},${f(rnd(6, 14))}" stroke="${INK}" stroke-width="1.3" opacity=".5" fill="none"/>`;
+    }
+    for (let k = 0; k < 18; k++) {
+      s += `<ellipse cx="${f(rnd(14, w - 14))}" cy="${f(rnd(h - 26, h - 8))}" rx="${f(rnd(6, 16))}" ry="${f(rnd(3, 6))}" fill="#7FE0C2" opacity="${f(rnd(0.25, 0.5))}"/>`;
+    }
+    return doc(w, h, s, lg('piedraVentana', [[0, '#3A4078'], [1, '#1A1E42']]));
+  }
+
+  // Imagen de reemplazo si no hay foto: vitral con luna, corazón y estrellas (cada pieza es distinta)
+  function vitral() {
+    semilla(62);
+    const L0 = VITRAL.lado;
+    let s = `<rect width="${L0}" height="${L0}" fill="#20264F"/>`;
+    const colores = ['#3A3F7A', '#2E5E8C', '#7FE0C2', '#6F7FD6', '#B59CFF', '#4E8C9F', '#8F86C9', '#2A6F6A'];
+    // Mosaico de vidrios triangulares
+    const n = 6, q = L0 / n;
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        const x = c * q, y = r * q;
+        const t1 = `${x},${y} ${x + q},${y} ${x},${y + q}`, t2 = `${x + q},${y} ${x + q},${y + q} ${x},${y + q}`;
+        s += `<polygon points="${t1}" fill="${pick(colores)}" opacity="${f(rnd(0.65, 0.95))}"/><polygon points="${t2}" fill="${pick(colores)}" opacity="${f(rnd(0.65, 0.95))}"/>`;
+      }
+    }
+    s += `<circle cx="${L0 * 0.72}" cy="${L0 * 0.26}" r="64" fill="url(#glowCream)" opacity=".9"/>`;
+    s += `<path d="M${L0 * 0.72},${L0 * 0.26 - 44} A44,44 0 1 0 ${L0 * 0.72 + 30},${L0 * 0.26 + 32} A34,34 0 1 1 ${L0 * 0.72},${L0 * 0.26 - 44}Z" fill="#FFF1D6"/>`;
+    s += heart(L0 * 0.36, L0 * 0.62, 9, '#C9566E');
+    s += `<path transform="translate(${L0 * 0.36},${L0 * 0.62}) scale(9)" d="M0,4 C-6,-2 -10,-6 -6,-9 C-3,-11 0,-8 0,-6 C0,-8 3,-11 6,-9 C10,-6 6,-2 0,4Z" fill="none" stroke="#F5C26B" stroke-width=".35"/>`;
+    [[60, 60, 14], [150, 40, 9], [300, 300, 13], [250, 200, 8], [90, 320, 10], [320, 150, 7]].forEach(([x, y, r]) => { s += estrella4(x, y, r, '#F5C26B'); });
+    // Plomo entre los vidrios
+    let plomo = '';
+    for (let k = 0; k <= n; k++) plomo += `M0,${k * q} H${L0} M${k * q},0 V${L0} `;
+    for (let k = -n; k <= n; k++) plomo += `M${k * q},${L0} L${k * q + L0},0 `;
+    s += `<path d="${plomo}" stroke="#141833" stroke-width="3" opacity=".85" fill="none"/>`;
+    return doc(L0, L0, s);
+  }
+
   // Texturas propias de una etapa: se crean al entrar al nivel y se liberan al salir
   function nivelArte(i, def) {
     const c = capas(i);
@@ -960,6 +1089,14 @@ const Arte = (() => {
       fugaz: fugaz(),
       carta_dorso: cartaDorso(),
       carta_frente: cartaFrente(),
+      losa_luz: losaLuz(),
+      tablero: tablero(),
+      ...Object.fromEntries(['k', 'q', 'r', 'b', 'n', 'p'].flatMap((t) => [
+        ['pieza_w' + t, pieza(t, true)],
+        ['pieza_b' + t, pieza(t, false)],
+      ])),
+      ventana: ventana(),
+      vitral: vitral(),
     };
   }
 
@@ -971,5 +1108,5 @@ const Arte = (() => {
     [[0, 0x0B0F2A], [500, 0x1E2454], [844, 0x3A3F7A]],
   ];
 
-  return { catalogo, nivelArte, ANCHO_MAX, SUELO_INTRO, PAPEL, RUTA, ZONAS, CIELOS, TERRENO_Y };
+  return { catalogo, nivelArte, ANCHO_MAX, SUELO_INTRO, PAPEL, RUTA, ZONAS, CIELOS, TERRENO_Y, TABLERO, VITRAL };
 })();
