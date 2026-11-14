@@ -5,6 +5,20 @@
 
 ---
 
+## 0. Decisiones tomadas (14 nov 2026)
+
+- **Todas las opciones ★** de la sección 6 quedan aprobadas.
+- **Nuevo requisito: también se juega en PC.**
+  - El alto del juego es fijo (844) y el ancho se adapta a la pantalla, entre 390 (celular vertical) y 1560 (PC horizontal).
+  - En PC se juega con teclado: ← → o A D para moverse, Espacio, W o ↑ para saltar, Enter para empezar, Esc para volver y M para silenciar. El mouse sirve para todos los botones.
+  - Los botones táctiles solo aparecen en pantallas táctiles.
+  - Los niveles solo cambian de tamaño al pasar de escena, nunca a mitad de una partida.
+- **Trazabilidad con git y GitHub:**
+  - Repositorio privado.
+  - Cada fase va en su propia rama y se entrega con un Pull Request hacia `main`.
+  - Aprobar o fusionar el PR equivale a confirmar la fase.
+  - Las fotos personales no se suben al repositorio (ver `.gitignore`).
+
 ## 1. La idea en una frase
 
 Un juego de plataformas 2D para celular en el que **Angie viaja por cuatro paisajes que representan nuestra historia**. En cada uno corre, salta y esquiva peligros hasta encontrar un **cofre**. Dentro hay un minijuego que le da una **llave**. Con las cuatro llaves abre el **tesoro final**, donde está la pregunta: *"¿Quieres ser mi novia?"*.
@@ -17,8 +31,8 @@ Un juego de plataformas 2D para celular en el que **Angie viaja por cuatro paisa
 |---|---|
 | Duración | 8–12 minutos sin conocer el juego (~10 min) |
 | Idioma y tono | Español; romántico, tierno y con humor ligero |
-| Plataforma | Celular en vertical (base 390×844, `Scale.FIT` + `CENTER_BOTH`), Chrome Android y Safari iOS |
-| Controles | Solo táctiles, con botones de 48 px como mínimo |
+| Plataforma | Celular en vertical y PC en horizontal: alto 844 y ancho adaptable de 390 a 1560 (`Scale.FIT` + `CENTER_BOTH`); Chrome Android, Safari iOS y navegadores de escritorio |
+| Controles | Táctiles en celular (botones de 48 px como mínimo); teclado y mouse en PC |
 | Rendimiento | 60 fps en un celular de gama media; cero errores en consola |
 | Pantalla | Sin zoom accidental; nada fuera de pantalla entre 360 y 430 px de ancho |
 | Stack | Phaser 3 (CDN) y JavaScript vanilla, sin bundlers. Archivos `index.html`, `game.js`, `config.js` y `assets/fotos/` |
