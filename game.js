@@ -98,7 +98,7 @@ const Guardado = {
 };
 
 /* =====================================================================
- *  Sonido (Web Audio). La música y el ambiente llegan en la fase 4.
+ *  Sonido (Web Audio): efectos. La música y el ambiente están en Musica.
  * ===================================================================== */
 const Sonido = {
   ctx: null,
@@ -115,7 +115,8 @@ const Sonido = {
       this.master.gain.value = this.silencio ? 0 : 1;
       this.master.connect(this.ctx.destination);
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx.state === 'suspended') this.ctx.resume().then(() => Musica.arrancar());
+    else Musica.arrancar();
   },
 
   setSilencio(s) {
@@ -191,6 +192,285 @@ const Sonido = {
         this.tono(2637, 0.5, 'sine', 0.06, 0.34);
         break;
     }
+  },
+};
+
+/* =====================================================================
+ *  Música y ambiente generados por código (timbres de cuento).
+ *  Cada escena pide un tema con Musica.tocar(clave). Si CFG.musica[clave]
+ *  tiene un mp3, se usa ese archivo en su lugar.
+ * ===================================================================== */
+const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+
+// acordes: notas MIDI (se repiten por compás). melodia: 8 corcheas por compás (null = silencio).
+const TEMAS_MUSICA = {
+  intro: { bpm: 72, inst: 'caja', densidad: 0.45, acordes: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]], amb: ['viento', 'pajaros'] },
+  mapa: { bpm: 68, inst: 'arpa', densidad: 0.5, acordes: [[48, 52, 55], [55, 59, 62], [57, 60, 64], [53, 57, 60]], amb: ['brillos'] },
+  etapa1: { bpm: 80, inst: 'arpa', densidad: 0.5, acordes: [[50, 54, 57], [55, 59, 62], [59, 62, 66], [57, 61, 64]], amb: ['viento', 'pajaros'] },
+  etapa2: { bpm: 76, inst: 'caja', densidad: 0.45, acordes: [[53, 57, 60], [48, 52, 55], [50, 53, 57], [46, 50, 53]], amb: ['rio'] },
+  etapa3: { bpm: 70, inst: 'flauta', densidad: 0.3, acordes: [[52, 55, 59], [48, 52, 55], [55, 59, 62], [50, 54, 57]], amb: ['brisa', 'insectos'] },
+  etapa4: { bpm: 64, inst: 'campana', densidad: 0.3, acordes: [[57, 60, 64], [52, 55, 59], [53, 57, 60], [55, 59, 62]], amb: ['vientoNoche', 'brillos'] },
+  cofre: { bpm: 58, inst: 'campana', densidad: 0.22, acordes: [[50, 53, 57], [46, 50, 53], [53, 57, 60], [48, 52, 55]], amb: ['vientoNoche'] },
+  // Tema de la propuesta: melodía fija con caja de música
+  propuesta: {
+    bpm: 66, inst: 'caja', acordes: [[48, 52, 55], [55, 59, 62], [57, 60, 64], [53, 57, 60]], amb: ['vientoNoche'],
+    melodia: [
+      [72, null, 76, 79, 77, 76, 74, null], [74, null, 71, 74, 79, null, 77, 76],
+      [76, null, 72, 76, 81, null, 79, 77], [77, 76, 74, 72, 74, null, null, null],
+    ],
+  },
+  final: { bpm: 92, inst: 'caja', inst2: 'arpa', densidad: 0.6, acordes: [[48, 52, 55], [53, 57, 60], [57, 60, 64], [55, 59, 62]], amb: ['brillos'] },
+};
+
+const Musica = {
+  bus: null,
+  actual: null,      // { clave, gain, intervalo, ambiente: [], audio }
+  pendiente: null,
+  ruido: null,
+
+  tocar(clave) {
+    if (this.actual && this.actual.clave === clave) return;
+    this.pendiente = clave;
+    if (Sonido.ctx && Sonido.ctx.state === 'running') this.arrancar();
+  },
+
+  // Se llama al crear o reanudar el contexto de audio.
+  arrancar() {
+    const clave = this.pendiente;
+    if (!clave || (this.actual && this.actual.clave === clave)) return;
+    const ctx = Sonido.ctx;
+    if (!this.bus) {
+      this.bus = ctx.createGain();
+      this.bus.gain.value = 0.55;
+      this.bus.connect(Sonido.master);
+    }
+    this.detener();
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(1, ctx.currentTime + 1.6);
+    gain.connect(this.bus);
+    const pista = { clave, gain, ambiente: [] };
+    this.actual = pista;
+
+    const mp3 = CFG.musica && CFG.musica[clave];
+    if (mp3) {
+      const audio = new Audio(mp3);
+      audio.loop = true;
+      audio.addEventListener('error', () => { if (this.actual === pista) this.generar(pista); }, { once: true });
+      try { ctx.createMediaElementSource(audio).connect(gain); } catch (e) { /* sin ruteo: suena directo */ }
+      audio.play().catch(() => this.generar(pista));
+      pista.audio = audio;
+    } else {
+      this.generar(pista);
+    }
+  },
+
+  detener() {
+    const a = this.actual;
+    if (!a) return;
+    this.actual = null;
+    const t = Sonido.ctx.currentTime;
+    a.gain.gain.cancelScheduledValues(t);
+    a.gain.gain.setValueAtTime(Math.max(0.0001, a.gain.gain.value), t);
+    a.gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+    clearInterval(a.intervalo);
+    setTimeout(() => {
+      a.ambiente.forEach((n) => { try { n.stop(); } catch (e) { /* ya detenido */ } });
+      if (a.audio) a.audio.pause();
+      a.gain.disconnect();
+    }, 1400);
+  },
+
+  generar(pista) {
+    const tema = TEMAS_MUSICA[pista.clave] || TEMAS_MUSICA.mapa;
+    const ctx = Sonido.ctx;
+    const corchea = 30 / tema.bpm;
+    let paso = 0;
+    let siguiente = ctx.currentTime + 0.1;
+    (tema.amb || []).forEach((tipo) => this.ambienteContinuo(pista, tipo));
+    pista.intervalo = setInterval(() => {
+      if (this.actual !== pista || ctx.state !== 'running') return;
+      while (siguiente < ctx.currentTime + 0.35) {
+        this.paso(pista, tema, paso, siguiente, corchea);
+        paso++;
+        siguiente += corchea;
+      }
+      // Si la pestaña estuvo en segundo plano, no intenta "ponerse al día"
+      if (siguiente < ctx.currentTime) siguiente = ctx.currentTime + 0.05;
+    }, 90);
+  },
+
+  paso(pista, tema, paso, t, corchea) {
+    const compas = Math.floor(paso / 8) % tema.acordes.length;
+    const acorde = tema.acordes[compas];
+    const dest = pista.gain;
+    const r = Math.random();
+    if (paso % 8 === 0) {
+      this.colchon(acorde, t, corchea * 8, dest);
+      this.instrumento('arpa', midi(acorde[0] - 12), t, 0.09, dest);
+    }
+    if (tema.melodia) {
+      const n = tema.melodia[compas][paso % 8];
+      if (n) this.instrumento(tema.inst, midi(n), t, 0.13, dest);
+    } else if (r < tema.densidad * (paso % 2 === 0 ? 1.3 : 0.7)) {
+      const nota = acorde[Math.floor(Math.random() * acorde.length)] + (Math.random() < 0.35 ? 24 : 12);
+      this.instrumento(paso % 4 === 2 && tema.inst2 ? tema.inst2 : tema.inst, midi(nota), t, 0.1, dest);
+    }
+    // Ambiente puntual
+    (tema.amb || []).forEach((tipo) => {
+      if (tipo === 'pajaros' && Math.random() < 0.05) this.pajaro(t, dest);
+      if (tipo === 'insectos' && Math.random() < 0.12) this.grillo(t, dest);
+      if (tipo === 'brillos' && Math.random() < 0.08) this.instrumento('campana', midi(84 + [0, 2, 4, 7, 9, 12][Math.floor(Math.random() * 6)]), t, 0.035, dest);
+    });
+  },
+
+  instrumento(tipo, f, t, vol, dest) {
+    const ctx = Sonido.ctx;
+    const env = ctx.createGain();
+    env.connect(dest);
+    const osc = (forma, frec, g = 1, dur = 2) => {
+      const o = ctx.createOscillator();
+      o.type = forma;
+      o.frequency.setValueAtTime(frec, t);
+      if (g === 1) { o.connect(env); } else {
+        const gg = ctx.createGain();
+        gg.gain.setValueAtTime(g, t);
+        gg.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(gg).connect(env);
+      }
+      o.start(t);
+      o.stop(t + dur + 0.1);
+      return o;
+    };
+    if (tipo === 'caja') {
+      env.gain.setValueAtTime(0.0001, t);
+      env.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + 1.5);
+      osc('sine', f, 1, 1.5);
+      osc('sine', f * 4.02, 0.22, 0.35);
+    } else if (tipo === 'arpa') {
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(4200, t);
+      lp.frequency.exponentialRampToValueAtTime(700, t + 0.4);
+      env.disconnect();
+      env.connect(lp).connect(dest);
+      env.gain.setValueAtTime(0.0001, t);
+      env.gain.exponentialRampToValueAtTime(vol, t + 0.004);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+      osc('triangle', f, 1, 1.8);
+    } else if (tipo === 'campana') {
+      env.gain.setValueAtTime(0.0001, t);
+      env.gain.exponentialRampToValueAtTime(vol, t + 0.004);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + 2.6);
+      osc('sine', f, 1, 2.6);
+      osc('sine', f * 2.76, 0.4, 1.2);
+      osc('sine', f * 5.4, 0.18, 0.6);
+    } else { // flauta
+      env.gain.setValueAtTime(0.0001, t);
+      env.gain.exponentialRampToValueAtTime(vol * 0.8, t + 0.09);
+      env.gain.setValueAtTime(vol * 0.8, t + 0.5);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+      const o = osc('sine', f, 1, 1.1);
+      const vib = ctx.createOscillator();
+      const prof = ctx.createGain();
+      vib.frequency.value = 5;
+      prof.gain.value = f * 0.006;
+      vib.connect(prof).connect(o.frequency);
+      vib.start(t);
+      vib.stop(t + 1.2);
+    }
+  },
+
+  // Acorde suave sostenido durante el compás
+  colchon(acorde, t, dur, dest) {
+    const ctx = Sonido.ctx;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 1100;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t);
+    env.gain.exponentialRampToValueAtTime(0.035, t + dur * 0.35);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + dur * 1.15);
+    lp.connect(env).connect(dest);
+    acorde.forEach((n) => [-4, 4].forEach((cents) => {
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.value = midi(n);
+      o.detune.value = cents;
+      o.connect(lp);
+      o.start(t);
+      o.stop(t + dur * 1.2);
+    }));
+  },
+
+  pajaro(t, dest) {
+    const ctx = Sonido.ctx;
+    const base = 2400 + Math.random() * 1200;
+    for (let k = 0; k < 2 + Math.floor(Math.random() * 3); k++) {
+      const t0 = t + k * 0.11;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.frequency.setValueAtTime(base, t0);
+      o.frequency.exponentialRampToValueAtTime(base * 1.35, t0 + 0.06);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.025, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.08);
+      o.connect(g).connect(dest);
+      o.start(t0);
+      o.stop(t0 + 0.1);
+    }
+  },
+
+  grillo(t, dest) {
+    const ctx = Sonido.ctx;
+    for (let k = 0; k < 3; k++) {
+      const t0 = t + k * 0.055;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.frequency.value = 4300;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.012, t0 + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.035);
+      o.connect(g).connect(dest);
+      o.start(t0);
+      o.stop(t0 + 0.05);
+    }
+  },
+
+  // Viento, río y brisa: ruido filtrado en bucle, con una ondulación lenta
+  ambienteContinuo(pista, tipo) {
+    const cfg = {
+      viento: { f: 500, q: 0.6, tipoF: 'bandpass', vol: 0.05, lfo: 0.08 },
+      vientoNoche: { f: 320, q: 0.8, tipoF: 'bandpass', vol: 0.05, lfo: 0.06 },
+      brisa: { f: 900, q: 0.5, tipoF: 'bandpass', vol: 0.025, lfo: 0.12 },
+      rio: { f: 750, q: 0.3, tipoF: 'lowpass', vol: 0.045, lfo: 0.3 },
+    }[tipo];
+    if (!cfg) return;
+    const ctx = Sonido.ctx;
+    if (!this.ruido) {
+      this.ruido = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+      const d = this.ruido.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = this.ruido;
+    src.loop = true;
+    const filtro = ctx.createBiquadFilter();
+    filtro.type = cfg.tipoF;
+    filtro.frequency.value = cfg.f;
+    filtro.Q.value = cfg.q;
+    const g = ctx.createGain();
+    g.gain.value = cfg.vol;
+    const lfo = ctx.createOscillator();
+    const prof = ctx.createGain();
+    lfo.frequency.value = cfg.lfo;
+    prof.gain.value = cfg.vol * 0.6;
+    lfo.connect(prof).connect(g.gain);
+    src.connect(filtro).connect(g).connect(pista.gain);
+    src.start();
+    lfo.start();
+    pista.ambiente.push(src, lfo);
   },
 };
 
@@ -677,6 +957,7 @@ class Intro extends Phaser.Scene {
 
   create() {
     entrar(this);
+    Musica.tocar('intro');
     hud(this).mostrarLlaves(false);
     this.ocupado = false;
 
@@ -726,6 +1007,7 @@ class Mapa extends Phaser.Scene {
 
   create() {
     entrar(this);
+    Musica.tocar('mapa');
     const h = hud(this);
     h.mostrarLlaves(true);
     h.refrescar();
@@ -973,6 +1255,7 @@ class Nivel extends Phaser.Scene {
 
   create() {
     entrar(this);
+    Musica.tocar('etapa' + (this.i + 1));
     hud(this).mostrarLlaves(true);
     const i = this.i;
     const def = NIVELES[i];
@@ -1659,6 +1942,7 @@ class Mini1 extends Phaser.Scene {
 
   create() {
     entrar(this);
+    Musica.tocar('etapa1');
     hud(this).mostrarLlaves(true);
     this.estado = 'intro';
     this.objetos = [];
@@ -1822,6 +2106,7 @@ class Mini2 extends Phaser.Scene {
 
   create() {
     entrar(this);
+    Musica.tocar('etapa2');
     hud(this).mostrarLlaves(true);
     this.estado = 'intro';
     this.cartas = [];
@@ -2075,6 +2360,7 @@ class Mini3 extends Phaser.Scene {
 
   create() {
     entrar(this);
+    Musica.tocar('etapa3');
     hud(this).mostrarLlaves(true);
     this.estado = 'intro';
     fondoEtapa(this, 2);
@@ -2255,6 +2541,7 @@ class Mini4 extends Phaser.Scene {
 
   create() {
     entrar(this);
+    Musica.tocar('etapa4');
     hud(this).mostrarLlaves(true);
     this.estado = 'intro';
     fondoEtapa(this, 3);
@@ -2415,27 +2702,397 @@ class Mini4 extends Phaser.Scene {
 }
 
 /* =====================================================================
- *  Cofre final (provisional hasta la fase 4)
+ *  Tesoro final: el campo de flores bajo la luna
+ *  Cerraduras → trivia → pergamino → "¿Quieres ser mi novia?" → final
  * ===================================================================== */
-class CofrePendiente extends Phaser.Scene {
+const INTENTOS_NO_ANTES_DE_ENCOGER = 5;
+
+class Tesoro extends Phaser.Scene {
   constructor() { super('Cofre'); }
 
   create() {
     entrar(this);
-    hud(this).mostrarLlaves(true);
-    this.add.image(W / 2, H / 2, 'mapa_fondo');
-    motasDeLuz(this, 30);
-    this.add.image(W / 2, 400, 'brillo').setTint(ORO).setScale(3).setBlendMode('ADD');
-    this.add.image(W / 2, 400, 'cofre_mapa').setScale(1.6);
-    texto(this, W / 2, 230, 'El tesoro', 44, hex(ORO), { serif: true, peso: '700' });
-    texto(this, W / 2, 540, 'El cofre final y la sorpresa llegan en la fase 4', 17, hex(CREMA), { ancho: 320 });
-    boton(this, W / 2, 680, 'Volver al mapa', () => irA(this, 'Mapa'), { ancho: 250, tam: 24, teclas: ['ESC', 'ENTER'] });
+    Musica.tocar('cofre');
+    const h = hud(this);
+    h.mostrarLlaves(true);
+    h.refrescar();
+    this.estado = 'llaves';
+    const suelo = Arte.SUELO_TESORO;
+
+    this.add.image(W / 2, H / 2, 'tesoro_fondo');
+    this.luciernagas = this.add.particles(0, 0, 'luciernaga', {
+      x: { min: 0, max: W }, y: { min: 420, max: suelo + 40 }, lifespan: 5000,
+      speedY: { min: -18, max: -6 }, speedX: { min: -8, max: 8 }, scale: { min: 0.5, max: 1 },
+      alpha: { start: 0, end: 1, onUpdate: (p, k, t) => Math.sin(t * Math.PI) }, frequency: 420, maxAliveParticles: 14,
+      blendMode: 'ADD',
+    }).setDepth(4);
+
+    // Cofre y Angie
+    this.cx = W / 2 + 44;
+    this.cofre = this.add.image(this.cx, suelo + 16, 'cofre_grande').setOrigin(0.5, 1).setScale(0.44).setDepth(10);
+    this.brilloCofre = this.add.image(this.cx, suelo - 40, 'brillo').setTint(ORO).setScale(1.6).setAlpha(0.35).setBlendMode('ADD').setDepth(9);
+    this.heroina = new Heroina(this, W / 2 - 64, suelo + 14, 0.62).setDepth(11);
+
+    // Campo de flores (se abren en ola al decir que sí)
+    this.flores = [];
+    const n = Math.round(80 * W / 390);
+    for (let k = 0; k < n; k++) {
+      const x = Phaser.Math.Between(-10, W + 10);
+      const y = Phaser.Math.Between(suelo + 4, H - 6);
+      const base = 0.35 + ((y - suelo) / (H - suelo)) * 0.45;
+      const f = this.add.image(x, y, 'flor_' + (k % 4)).setScale(base * 0.55).setAlpha(0.45).setDepth(y > suelo + 30 ? 12 : 8);
+      f.base = base;
+      f.dist = Phaser.Math.Distance.Between(x, y, this.cx, suelo);
+      this.flores.push(f);
+    }
+    this.add.image(W / 2, H / 2, 'vineta').setDisplaySize(W, H).setDepth(30);
+
+    const titulo = texto(this, W / 2, 210, 'El tesoro', 52, hex(CREMA), { serif: true, peso: 'italic 700', sombra: '#000000', desenfoque: 14 }).setDepth(40).setAlpha(0);
+    this.tweens.add({ targets: titulo, alpha: 1, duration: 900 });
+    this.tweens.add({ targets: titulo, alpha: 0, duration: 700, delay: 2600, onComplete: () => titulo.destroy() });
+
+    this.time.delayedCall(1300, () => this.abrirCerraduras());
+  }
+
+  /* ---------- 1. Las cuatro cerraduras ---------- */
+  abrirCerraduras() {
+    const h = hud(this);
+    Sonido.sfx('error');
+    this.tweens.add({ targets: this.cofre, angle: { from: -4, to: 4 }, duration: 70, yoyo: true, repeat: 5, onComplete: () => this.cofre.setAngle(0) });
+    const arriba = this.cofre.y - this.cofre.displayHeight;
+    const cerraduras = [0, 1, 2, 3].map((k) => {
+      const x = this.cx + (k - 1.5) * 60;
+      const y = arriba - 46 - (k === 1 || k === 2 ? 14 : 0);
+      const c = this.add.image(x, y, 'cerradura').setScale(0).setDepth(20);
+      this.tweens.add({ targets: c, scale: 0.55, duration: 380, delay: 500 + k * 120, ease: 'Back.easeOut' });
+      return c;
+    });
+    [0, 1, 2, 3].forEach((k) => {
+      this.time.delayedCall(1500 + k * 750, () => {
+        const desde = h.slots[k];
+        if (h.llaves[k]) h.llaves[k].setVisible(false);
+        h.slots[k].brillo.setVisible(false);
+        const llave = this.add.image(desde.x, desde.y, 'llave').setScale(0.3).setAngle(-35).setDepth(21);
+        const c = cerraduras[k];
+        this.tweens.add({
+          targets: llave, x: c.x, y: c.y + 4, scale: 0.42, angle: 0, duration: 650, ease: 'Cubic.easeInOut',
+          onComplete: () => {
+            Sonido.sfx('acierto');
+            c.setTexture('cerradura_abierta');
+            this.tweens.add({ targets: c, scale: 0.7, duration: 120, yoyo: true });
+            this.tweens.add({ targets: llave, alpha: 0, duration: 300, onComplete: () => llave.destroy() });
+            const chispas = this.add.particles(c.x, c.y, 'chispa', {
+              speed: { min: 50, max: 140 }, lifespan: 550, scale: { start: 0.9, end: 0 }, emitting: false, blendMode: 'ADD',
+            }).setDepth(22);
+            chispas.explode(10);
+            this.time.delayedCall(700, () => chispas.destroy());
+            if (k === 3) {
+              this.time.delayedCall(700, () => {
+                h.mostrarLlaves(false);
+                this.tweens.add({ targets: cerraduras, alpha: 0, y: '-=20', duration: 500, onComplete: () => cerraduras.forEach((x) => x.destroy()) });
+                this.time.delayedCall(600, () => this.trivia(0));
+              });
+            }
+          },
+        });
+      });
+    });
+  }
+
+  /* ---------- 2. Trivia (cerradura extra) ---------- */
+  trivia(idx) {
+    const preguntas = CFG.trivia || [];
+    if (idx >= preguntas.length) { this.abrirCofre(); return; }
+    this.estado = 'trivia';
+    const q = preguntas[idx];
+    const w = Math.min(360, W - 28);
+    const c = this.add.container(W / 2, 360).setDepth(50);
+    const cuerpo = texto(this, 0, 0, q.pregunta, 25, hex(TINTA), { serif: true, peso: '700', ancho: w - 48 });
+    const altoOp = 56;
+    const h = 96 + cuerpo.height + q.opciones.length * (altoOp + 12) + 30;
+    const g = this.add.graphics();
+    g.fillStyle(0x000000, 0.35).fillRoundedRect(-w / 2 + 4, -h / 2 + 8, w, h, 14);
+    g.fillStyle(0xFBF3E2, 1).fillRoundedRect(-w / 2, -h / 2, w, h, 14);
+    g.lineStyle(2.5, TINTA, 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 14);
+    g.lineStyle(1.2, 0xD9A23E, 0.8).strokeRoundedRect(-w / 2 + 8, -h / 2 + 8, w - 16, h - 16, 9);
+    const encabezado = texto(this, 0, -h / 2 + 36, `La última cerradura · ${idx + 1} de ${preguntas.length}`, 15, '#8C6A48', { peso: '800' });
+    cuerpo.setY(-h / 2 + 66 + cuerpo.height / 2);
+    c.add([g, encabezado, cuerpo]);
+
+    let resuelta = false;
+    const opciones = q.opciones.map((op, k) => {
+      const y = -h / 2 + 90 + cuerpo.height + k * (altoOp + 12) + altoOp / 2;
+      const b = this.add.container(0, y);
+      const fondo = this.add.graphics();
+      const pintar = (relleno) => {
+        fondo.clear();
+        fondo.fillStyle(relleno, 1).fillRoundedRect(-(w - 48) / 2, -altoOp / 2, w - 48, altoOp, altoOp / 2);
+        fondo.lineStyle(2, TINTA, 1).strokeRoundedRect(-(w - 48) / 2, -altoOp / 2, w - 48, altoOp, altoOp / 2);
+      };
+      pintar(0xF1E2C4);
+      const t = texto(this, 0, -1, op, 20, hex(TINTA), { peso: '700', ancho: w - 80 });
+      b.add([fondo, t]);
+      b.setSize(w - 48, altoOp).setInteractive({ useHandCursor: true });
+      const elegir = () => {
+        if (resuelta || this.estado !== 'trivia') return;
+        Sonido.iniciar();
+        if (k === q.correcta) {
+          resuelta = true;
+          pintar(ORO);
+          Sonido.sfx('acierto');
+          this.tweens.add({ targets: b, scale: 1.05, duration: 120, yoyo: true });
+          this.time.delayedCall(750, () => {
+            if (this.input.keyboard) this.input.keyboard.off('keydown', teclado);
+            this.tweens.add({ targets: c, alpha: 0, scale: 0.9, duration: 250, onComplete: () => { c.destroy(); this.trivia(idx + 1); } });
+          });
+        } else {
+          pintar(0xF2C6CF);
+          Sonido.sfx('error');
+          this.tweens.add({ targets: b, x: { from: -6, to: 6 }, duration: 50, yoyo: true, repeat: 3, onComplete: () => b.setX(0) });
+          aviso(this, W / 2, c.y - h / 2 - 30, '¡Casi! Inténtalo otra vez', { duracion: 1400 });
+        }
+      };
+      b.on('pointerup', elegir);
+      b.on('pointerover', () => { if (!TACTIL && !resuelta) t.setColor('#B0485F'); });
+      b.on('pointerout', () => t.setColor(hex(TINTA)));
+      b.elegir = elegir;
+      c.add(b);
+      return b;
+    });
+    // Teclas 1, 2, 3 en PC
+    const teclado = (ev) => {
+      const n = parseInt(ev.key, 10);
+      if (n >= 1 && n <= opciones.length) opciones[n - 1].elegir();
+    };
+    if (this.input.keyboard) this.input.keyboard.on('keydown', teclado);
+
+    c.setScale(0.85).setAlpha(0);
+    this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 280, ease: 'Back.easeOut' });
+  }
+
+  /* ---------- 3. El cofre se abre y sale el pergamino ---------- */
+  abrirCofre() {
+    this.estado = 'pergamino';
+    const suelo = Arte.SUELO_TESORO;
+    this.cofre.setTexture('cofre_abierto');
+    Sonido.sfx('llave');
+    this.cameras.main.flash(500, 255, 231, 168);
+    const tapa = this.cofre.y - this.cofre.displayHeight * 0.6;
+    const columna = this.columna = this.add.image(this.cx, tapa, 'columna_luz').setOrigin(0.5, 1).setBlendMode('ADD').setDepth(9).setScale(0.9, 0);
+    this.tweens.add({ targets: columna, scaleY: 1, duration: 1100, ease: 'Sine.easeOut' });
+    this.tweens.add({ targets: columna, alpha: 0.65, duration: 1600, delay: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: this.brilloCofre, scale: 3, alpha: 0.8, duration: 900 });
+    this.add.particles(this.cx, tapa, 'chispa', {
+      x: { min: -26, max: 26 }, speedY: { min: -120, max: -50 }, speedX: { min: -14, max: 14 }, lifespan: 2600,
+      scale: { start: 0.7, end: 0 }, alpha: { start: 1, end: 0 }, frequency: 120, blendMode: 'ADD',
+    }).setDepth(9);
+    this.heroina.celebrar();
+    this.time.delayedCall(900, () => this.heroina.quieta());
+
+    // El pergamino sube desde el cofre
+    this.rollo = this.add.image(this.cx, tapa, 'pergamino_mini').setScale(0.1).setDepth(25);
+    this.tweens.add({
+      targets: this.rollo, y: suelo - 190, scale: 0.45, duration: 1300, delay: 600, ease: 'Sine.easeOut',
+      onComplete: () => this.leerPergamino(),
+    });
+  }
+
+  leerPergamino() {
+    const escala = Math.min(1, (W - 28) / 340, 600 / 470);
+    const cy = 400;
+    const carta = this.add.container(W / 2, cy).setDepth(50);
+    const hoja = this.add.image(0, 0, 'pergamino_carta').setScale(0.5 * escala);
+    const anchoTxt = (340 - 110) * escala;
+    const txt = texto(this, 0, -470 * escala / 2 + 66 * escala, '', Math.round(20 * Math.max(0.85, escala)), hex(TINTA),
+      { serif: true, peso: 'italic 600', ancho: anchoTxt, interlineado: 6, align: 'left', origenX: 0.5, origenY: 0 });
+    carta.add([hoja, txt]);
+    carta.setScale(0.2).setAlpha(0);
+    this.tweens.add({ targets: this.rollo, alpha: 0, duration: 300 });
+    this.tweens.add({ targets: carta, scale: 1, alpha: 1, duration: 500, ease: 'Back.easeOut' });
+
+    // Efecto máquina de escribir (un toque lo completa)
+    const leyenda = CFG.final.leyenda;
+    let n = 0;
+    let listo = false;
+    const terminar = () => {
+      if (listo) return;
+      listo = true;
+      reloj.remove();
+      this.input.off('pointerdown', saltar);
+      txt.setText(leyenda);
+      const sigue = boton(this, 0, 470 * escala / 2 - 70 * escala, 'Continuar', () => cerrar(), { ancho: 200, alto: 52, tam: 24, teclas: ['ENTER', 'SPACE'] });
+      sigue.setScale(escala < 0.9 ? 0.9 : 1);
+      carta.add(sigue);
+    };
+    const reloj = this.time.addEvent({
+      delay: 42, repeat: leyenda.length - 1,
+      callback: () => {
+        n++;
+        txt.setText(leyenda.slice(0, n));
+        if (n % 3 === 0 && leyenda[n - 1] !== ' ') Sonido.tono(1400 + Math.random() * 300, 0.03, 'triangle', 0.025);
+        if (n >= leyenda.length) this.time.delayedCall(300, terminar);
+      },
+    });
+    const saltar = () => { if (n > 4) terminar(); };
+    this.time.delayedCall(400, () => { if (!listo) this.input.on('pointerdown', saltar); });
+
+    let cerrada = false;
+    const cerrar = () => {
+      if (cerrada) return;
+      cerrada = true;
+      this.tweens.add({
+        targets: carta, scale: 0.15, alpha: 0, x: this.cx, y: Arte.SUELO_TESORO - 190, duration: 500, ease: 'Sine.easeIn',
+        onComplete: () => {
+          carta.destroy();
+          this.rollo.setAlpha(1).setScale(0.45);
+          this.tweens.add({ targets: this.rollo, y: this.rollo.y - 10, angle: { from: -3, to: 3 }, duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+          this.preguntar();
+        },
+      });
+    };
+  }
+
+  /* ---------- 4. La pregunta ---------- */
+  preguntar() {
+    this.estado = 'pregunta';
+    Musica.tocar('propuesta');
+    const nombre = texto(this, W / 2, 250, CFG.nombres.ella + ',', 34, hex(ORO), { serif: true, peso: 'italic 600', sombra: '#000000', desenfoque: 12 }).setDepth(40).setAlpha(0);
+    const pregunta = texto(this, W / 2, 350, CFG.final.pregunta, W < 500 ? 50 : 60, hex(CREMA),
+      { serif: true, peso: '700', ancho: W < 500 ? 300 : 640, interlineado: -6, sombra: '#120A1E', desenfoque: 18 }).setDepth(40).setAlpha(0);
+    // La columna de luz se atenúa para que la pregunta se lea bien
+    this.tweens.killTweensOf(this.columna);
+    this.tweens.add({ targets: this.columna, alpha: 0.3, duration: 1200 });
+    this.textosPregunta = [nombre, pregunta];
+    this.tweens.add({ targets: nombre, alpha: 1, y: 240, duration: 900 });
+    this.tweens.add({ targets: pregunta, alpha: 1, duration: 1400, delay: 900 });
+
+    this.time.delayedCall(2300, () => {
+      const ancho = Math.min(170, (W - 60) / 2);
+      const y = 784;
+      this.botonSi = boton(this, W / 2 - ancho / 2 - 12, y, CFG.final.botonSi, () => this.decirSi(), { ancho, alto: 64, tam: 32 }).setDepth(45);
+      this.botonNo = boton(this, W / 2 + ancho / 2 + 12, y, CFG.final.botonNo, () => this.huir(), { estilo: 'secundario', ancho, alto: 64, tam: 32 }).setDepth(45);
+      this.intentosNo = 0;
+      this.botonNo.on('pointerdown', () => this.huir());
+      if (!TACTIL) this.botonNo.on('pointerover', () => this.huir());
+      [this.botonSi, this.botonNo].forEach((b, k) => {
+        b.setAlpha(0);
+        this.tweens.add({ targets: b, alpha: 1, duration: 500, delay: k * 150 });
+      });
+    });
+  }
+
+  // El "No" se escapa; tras 5 intentos se encoge y cambia de texto, y al final se vuelve otro "Sí".
+  huir() {
+    const no = this.botonNo;
+    if (this.estado !== 'pregunta' || !no || no.convertido || no.huyendo) return;
+    this.intentosNo++;
+    const extra = this.intentosNo - INTENTOS_NO_ANTES_DE_ENCOGER;
+    const textos = CFG.final.textosNo || [];
+    if (extra > textos.length) {
+      this.convertirEnSi();
+      return;
+    }
+    if (extra > 0) {
+      no.etiqueta.setText(textos[extra - 1]);
+      no.etiqueta.setFontSize(Math.max(16, 30 - extra * 3));
+      no.escalaNo = (no.escalaNo || 1) * 0.86;
+    }
+    const s = no.escalaNo || 1;
+    const medio = (no.width * s) / 2 + 16;
+    const si = this.botonSi;
+    let x;
+    let y;
+    for (let k = 0; k < 30; k++) {
+      x = Phaser.Math.Between(medio, W - medio);
+      y = Phaser.Math.Between(140, H - 40);
+      const lejosSi = Math.abs(x - si.x) > (si.width + no.width * s) / 2 + 10 || Math.abs(y - si.y) > 70;
+      const lejosTexto = y < 190 || y > 470;
+      const lejosAhora = Phaser.Math.Distance.Between(x, y, no.x, no.y) > 140;
+      if (lejosSi && lejosTexto && lejosAhora) break;
+    }
+    Sonido.sfx('salto');
+    no.huyendo = true;
+    this.tweens.add({ targets: no, x, y, scale: s, duration: 170, ease: 'Sine.easeOut', onComplete: () => { no.huyendo = false; } });
+  }
+
+  convertirEnSi() {
+    const no = this.botonNo;
+    no.convertido = true;
+    const x = no.x;
+    const y = no.y;
+    this.tweens.add({
+      targets: no, scale: 0, duration: 200, onComplete: () => {
+        no.destroy();
+        const otro = boton(this, x, y, CFG.final.botonSi, () => this.decirSi(), { ancho: 150, alto: 60, tam: 30 }).setDepth(45).setScale(0);
+        this.tweens.add({ targets: otro, scale: 1, duration: 420, ease: 'Back.easeOut' });
+        this.botonNo = otro;
+        otro.convertido = true;
+        Sonido.sfx('corazon');
+        aviso(this, x, y - 64, 'Ahora sí 💖', { duracion: 1600 });
+      },
+    });
+  }
+
+  /* ---------- 5. ¡Sí! El campo florece ---------- */
+  decirSi() {
+    if (this.estado !== 'pregunta') return;
+    this.estado = 'si';
+    Musica.tocar('final');
+    Sonido.sfx('llave');
+    [this.botonSi, this.botonNo].forEach((b) => this.tweens.add({ targets: b, alpha: 0, scale: 0.8, duration: 300, onComplete: () => b.destroy() }));
+    this.tweens.add({ targets: this.textosPregunta, alpha: 0, duration: 800, delay: 1200 });
+    this.heroina.celebrar();
+    this.tweens.add({ targets: this.heroina, y: this.heroina.y - 16, duration: 260, yoyo: true, repeat: 3, ease: 'Sine.easeOut' });
+
+    // Ola de flores desde el cofre
+    this.flores.forEach((f) => {
+      this.tweens.add({ targets: f, scale: f.base * 1.35, alpha: 1, duration: 500, delay: f.dist * 1.6, ease: 'Back.easeOut' });
+    });
+    for (let k = 0; k < Math.round(50 * W / 390); k++) {
+      const x = Phaser.Math.Between(-10, W + 10);
+      const y = Phaser.Math.Between(Arte.SUELO_TESORO - 6, H - 4);
+      const base = 0.4 + ((y - Arte.SUELO_TESORO) / (H - Arte.SUELO_TESORO)) * 0.5;
+      const f = this.add.image(x, y, 'flor_' + (k % 4)).setScale(0).setDepth(12);
+      this.tweens.add({ targets: f, scale: base * 1.2, duration: 500, delay: Phaser.Math.Distance.Between(x, y, this.cx, Arte.SUELO_TESORO) * 1.6 + 150, ease: 'Back.easeOut' });
+    }
+    this.luciernagas.setFrequency(90);
+    this.add.particles(0, 0, 'corazon', {
+      x: { min: 0, max: W }, y: H + 20, lifespan: 6000, speedY: { min: -120, max: -60 }, speedX: { min: -20, max: 20 },
+      scale: { min: 0.35, max: 0.7 }, rotate: { min: -20, max: 20 }, alpha: { start: 1, end: 0 }, frequency: 260, maxAliveParticles: 26,
+    }).setDepth(28);
+
+    this.time.delayedCall(4200, () => this.pantallaFinal());
+  }
+
+  pantallaFinal() {
+    this.estado = 'final';
+    const velo = this.add.rectangle(W / 2, H / 2, W, H, 0x0A0608, 0.5).setDepth(60).setAlpha(0);
+    this.tweens.add({ targets: velo, alpha: 1, duration: 600 });
+    const hoja = this.add.container(W / 2, 400).setDepth(61);
+    hoja.add(this.add.image(0, 0, 'pagina_diario'));
+    hoja.add(foto(this, 0, -66, 236, 186, CFG.final.foto, PALETAS[3]).setAngle(-2));
+    hoja.add(this.add.image(-108, -152, 'cinta').setAngle(-32));
+    hoja.add(this.add.image(108, -152, 'cinta').setAngle(30));
+    hoja.add(texto(this, 0, 104, CFG.final.mensajeFinal, 23, hex(TINTA), { serif: true, peso: 'italic 700', ancho: 260, interlineado: 2 }));
+    hoja.setScale(0.05, 1).setAngle(-6);
+    this.tweens.add({ targets: hoja, scaleX: Math.min(1, (W - 30) / 320), scaleY: Math.min(1, (W - 30) / 320), angle: -2, duration: 600, ease: 'Back.easeOut', delay: 300 });
+    const otraVez = boton(this, W / 2, 712, 'Volver al inicio', () => irA(this, 'Intro'),
+      { estilo: 'secundario', ancho: 240, alto: 52, tam: 24 }).setDepth(61).setAlpha(0);
+    this.tweens.add({ targets: otraVez, alpha: 1, duration: 600, delay: 2500 });
   }
 }
 
 /* =====================================================================
  *  Arranque
  * ===================================================================== */
+// Los navegadores solo permiten sonar tras un gesto del usuario: cualquier toque o tecla sirve.
+['pointerdown', 'keydown', 'touchstart'].forEach((ev) => window.addEventListener(ev, () => Sonido.iniciar(), { passive: true }));
+document.addEventListener('visibilitychange', () => {
+  if (!Sonido.ctx) return;
+  if (document.hidden) Sonido.ctx.suspend();
+  else Sonido.ctx.resume();
+});
+
 window.juego = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'juego',
@@ -2455,6 +3112,6 @@ window.juego = new Phaser.Game({
     Boot, Intro, Mapa,
     new Nivel(0), new Nivel(1), new Nivel(2), new Nivel(3),
     Mini1, Mini2, Mini3, Mini4,
-    CofrePendiente, HUD,
+    Tesoro, HUD,
   ],
 });

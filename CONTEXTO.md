@@ -49,8 +49,8 @@
 |---|---|---|---|
 | 1 | Rediseño visual: Angie con animaciones, portada, mapa en pergamino, HUD, PC, 4 niveles ilustrados con zarzas, sombras, faroles y páginas de diario | `fase-1/base-visual` | Hecha, sin PR |
 | 2 | Salto de pétalo (doble salto) desde la etapa II; minijuego 1 (frasco de los recuerdos) y 2 (naipes del farol) dentro de los cofres | `fase-2/etapas-1-2` (sale de la fase 1) | Hecha, sin PR |
-| 3 | Planear con la capa (etapa III), plataformas de luz (etapa IV), niveles III y IV rediseñados; minijuego 3 (tablero del claro, ajedrez) y 4 (vitral, rompecabezas) | `fase-3/etapas-3-4` (sale de la fase 2) | Hecha, sin PR, **rama actual** |
-| 4 | Cofre final, trivia, pergamino, propuesta, música, pulido | — | Pendiente |
+| 3 | Planear con la capa (etapa III), plataformas de luz (etapa IV), niveles III y IV rediseñados; minijuego 3 (tablero del claro, ajedrez) y 4 (vitral, rompecabezas) | `fase-3/etapas-3-4` (sale de la fase 2) | Hecha, sin PR |
+| 4 | Tesoro final (cerraduras, trivia, pergamino, propuesta, campo que florece, pantalla final) y música y ambiente generados por código | `fase-4/final` (sale de la fase 3) | Hecha, sin PR, **rama actual** |
 
 `main` solo tiene el estado inicial (prototipo v1 + propuesta).
 
@@ -64,20 +64,17 @@
 - **Minijuego 3 (`Mini3`):** módulo `Ajedrez` con jugadas legales (sin enroque ni al paso, corona a dama). Acepta la 1.ª jugada de `CFG.ajedrez.solucion` y como 2.ª cualquier jugada que dé mate.
 - **Minijuego 4 (`Mini4`):** 30 movimientos de mezcla, flechas en PC, botón "Ver vitral" (3 s). Sin foto usa la textura `vitral`.
 
-### Fase 4
+### Fase 4 (hecha)
 
-- **Cofre final** (hoy la escena `Cofre` es provisional), en el campo de flores bajo la luna (ver `propuesta/concepto/04-propuesta.png`):
-  1. El cofre tiembla y aparecen 4 cerraduras; cada llave vuela a la suya.
-  2. Trivia de 3 preguntas (`CFG.trivia`), con reintento si falla.
-  3. El cofre se abre con una columna de luz y sale un pergamino con `CFG.final.leyenda` en efecto máquina de escribir.
-- **Pregunta "¿Quieres ser mi novia?":**
-  - **"Sí":** el campo florece en ola y suben luciérnagas y corazones; cambia la música y aparece la pantalla final con la foto y el mensaje.
-  - **"No":** huye a una posición aleatoria con cada `touchstart` o `pointerdown`. Tras 5 intentos se encoge y cambia de texto (`CFG.final.textosNo`). Al final se convierte en otro "Sí".
-- **Audio (opción ★ B):**
-  - Ambiente generado por código con timbres de cuento (caja de música, arpa, campanas) y sonido ambiente por etapa.
-  - Tema emotivo para la propuesta.
-  - mp3 opcionales desde `CFG.musica`.
-- **Pulido:** prueba de duración (8–12 min) y de rendimiento.
+- **Escena `Cofre` (clase `Tesoro`):** campo de flores bajo la luna. El cofre tiembla, las 4 llaves vuelan desde el HUD a sus cerraduras, trivia de `CFG.trivia` (reintento al fallar; teclas 1–3 en PC), columna de luz, pergamino con `CFG.final.leyenda` en máquina de escribir (un toque la completa) y la pregunta.
+- **Botón "No":** huye con cada `pointerdown` (y al pasar el mouse en PC). Tras 5 intentos se encoge y toma los textos de `CFG.final.textosNo`; al agotarlos se convierte en otro "Sí".
+- **"Sí":** las flores se abren en ola desde el cofre, suben luciérnagas y corazones, cambia la música y aparece la página final con `CFG.final.foto` y `CFG.final.mensajeFinal`.
+- **Audio (`Musica`):** temas generados por escena (`intro`, `mapa`, `etapa1`..`etapa4` también en los minijuegos, `cofre`, `propuesta` con melodía fija de caja de música, `final`). Timbres: caja de música, arpa, campanas, flauta y colchón. Ambiente: viento y pájaros (I), río (II), brisa e insectos (III), viento nocturno y brillos (IV). Un mp3 en `CFG.musica[clave]` reemplaza al tema generado. El audio se desbloquea con el primer toque o tecla y se suspende con la pestaña oculta.
+
+### Pendiente
+
+- **Prueba en un celular real:** rendimiento (en la prueba sin ventana da 60 fps) y duración total (objetivo 8–12 min).
+- **Contenido personal:** fotos en `assets/fotos/`, textos y trivia reales en `config.js`, y mp3 opcionales.
 
 ### Mejoras anotadas (no urgentes)
 
@@ -99,9 +96,9 @@
 
 **`game.js`, en orden:**
 - Tamaño adaptable (`W` variable y `H = 844`; `aplicarTamano` solo entre escenas).
-- `Guardado` (localStorage) y `Sonido` (Web Audio).
 - Utilidades: `texto`, `boton`, `aviso`, `foto`, `tarjetaMensaje`, `botonCasa`, `ganarLlave`, `fondoEtapa`.
-- Escenas: `Boot`, `HUD` (siempre encima), `Intro`, `Mapa`, `Nivel` (una instancia por etapa: `Etapa1`..`Etapa4`), `Mini1`..`Mini4`, `CofrePendiente`.
+- `Guardado` (localStorage), `Sonido` (efectos) y `Musica` (temas y ambiente generados).
+- Escenas: `Boot`, `HUD` (siempre encima), `Intro`, `Mapa`, `Nivel` (una instancia por etapa: `Etapa1`..`Etapa4`), `Mini1`..`Mini4`, `Tesoro` (clave `Cofre`).
 
 **Cómo están hechos los niveles:**
 - Los niveles se diseñan en la tabla `NIVELES`, con una cuadrícula de 40 px y el suelo a y = 600. La cuadrícula de colisión es invisible: lo que se ve es el terreno SVG generado a partir de la misma tabla.

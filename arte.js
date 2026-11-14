@@ -1034,6 +1034,114 @@ const Arte = (() => {
     return doc(L0, L0, s);
   }
 
+  /* =====================================================================
+   *  Tesoro final: el campo de flores bajo la luna
+   * ===================================================================== */
+  const SUELO_TESORO = 690;
+
+  function tesoroFondo() {
+    semilla(401);
+    const W0 = ANCHO_MAX, H0 = 844, cx = W0 / 2;
+    let s = `<rect width="${W0}" height="${H0}" fill="url(#nocheT)"/>`;
+    s += dots({ x0: 0, x1: W0, y0: 0, y1: 560, count: 260, rMin: 0.4, rMax: 1.5, colors: ['#FFF1D6', '#DDE4FF'] });
+    s += `<g filter="url(#b16)" opacity=".55">` +
+      `<path d="M-40,330 C240,240 420,420 760,300 C1040,200 1260,330 1600,250" stroke="#7FE0C2" stroke-width="70" fill="none"/>` +
+      `<path d="M-40,420 C300,360 640,470 980,390 C1220,330 1400,380 1600,350" stroke="#B59CFF" stroke-width="46" fill="none" opacity=".7"/></g>`;
+    const lx = cx + 170, ly = 250;
+    s += `<circle cx="${lx}" cy="${ly}" r="260" fill="url(#glowCream)" opacity=".75"/><circle cx="${lx}" cy="${ly}" r="62" fill="#FFF4DE"/>`;
+    s += `<circle cx="${lx - 18}" cy="${ly - 14}" r="11" fill="#EADCC0" opacity=".7"/><circle cx="${lx + 22}" cy="${ly + 20}" r="8" fill="#EADCC0" opacity=".7"/>`;
+    // Ruinas lejanas y colinas
+    s += ridge({ x1: W0, base: 600, amp: 70, color: '#262C5E', bottom: H0, op: 0.9, filter: 'b1' });
+    s += tower(cx - 420, 590, 26, 110, '#262C5E') + arch(cx + 330, 600, 22, 70, '#262C5E', true, 8) + tower(cx + 560, 600, 20, 80, '#262C5E');
+    s += `<rect y="560" width="${W0}" height="110" fill="url(#niebla)" opacity=".5" filter="url(#b8)"/>`;
+    s += ridge({ x1: W0, base: 660, amp: 30, color: '#171C40', bottom: H0, freqs: [[0.01, 1], [0.04, 0.4]] });
+    // Campo oscuro
+    let d = `M-10,${H0}`;
+    for (let x = -10; x <= W0 + 10; x += 10) d += ` L${x},${f(SUELO_TESORO + 4 * Math.sin(x * 0.012) + 2 * Math.sin(x * 0.05))}`;
+    s += `<path d="${d} L${W0 + 10},${H0} Z" fill="url(#campoT)"/>`;
+    s += grass({ x0: -5, x1: W0 + 5, base: () => SUELO_TESORO + 6, hMin: 6, hMax: 20, count: 520, color: '#0A0C1F', lean: 5, wMin: 1.5, wMax: 3.5 });
+    return doc(W0, H0, s,
+      lg('nocheT', [[0, '#0B0F2A'], [0.55, '#1E2454'], [1, '#3A3F7A']]) +
+      lg('campoT', [[0, '#151A3C'], [1, '#07081A']]) +
+      lg('niebla', [[0, '#8F86C9', 0], [0.5, '#8F86C9', 0.6], [1, '#8F86C9', 0]]));
+  }
+
+  // Flor del campo (32×32): 5 pétalos y centro dorado
+  function flor(c) {
+    let s = `<circle cx="16" cy="16" r="15" fill="${c}" opacity=".25" filter="url(#b3)"/>`;
+    for (let k = 0; k < 5; k++) {
+      const a = k * 1.2566 - 1.5708;
+      s += `<circle cx="${f(16 + Math.cos(a) * 6)}" cy="${f(16 + Math.sin(a) * 6)}" r="4.6" fill="${c}"/>`;
+    }
+    return doc(32, 32, s + `<circle cx="16" cy="16" r="3.2" fill="#FFE7A8"/>`);
+  }
+
+  function cofreGrande(abierto) {
+    let s = `<ellipse cx="80" cy="132" rx="70" ry="8" fill="#000" opacity=".35"/>`;
+    if (abierto) {
+      s += `<ellipse cx="80" cy="58" rx="60" ry="24" fill="url(#glowGold)"/>`;
+      s += `<path d="M22,58 L30,8 Q80,-6 130,8 L138,58 Z" fill="#8E5631" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>`;
+      s += `<path d="M38,12 L36,56 M122,12 L124,56" stroke="#F5C26B" stroke-width="7"/><path d="M38,12 L36,56 M122,12 L124,56" stroke="${INK}" stroke-width="1.2" opacity=".6"/>`;
+      s += `<ellipse cx="80" cy="60" rx="56" ry="10" fill="#FFE7A8" stroke="${INK}" stroke-width="2.5"/>`;
+    } else {
+      s += `<path d="M16,64 Q80,4 144,64 Z" fill="#8E5631" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>`;
+      s += `<path d="M26,58 Q80,16 134,58" stroke="#FFFFFF" stroke-width="2" opacity=".25" fill="none"/>`;
+    }
+    s += `<rect x="18" y="62" width="124" height="66" rx="7" fill="#7A4A2A" stroke="${INK}" stroke-width="3"/>`;
+    const y0 = abierto ? 62 : 28, alto = abierto ? 66 : 100;
+    s += `<rect x="36" y="${y0}" width="11" height="${alto}" fill="#F5C26B" stroke="${INK}" stroke-width="1.8"/><rect x="113" y="${y0}" width="11" height="${alto}" fill="#F5C26B" stroke="${INK}" stroke-width="1.8"/>`;
+    s += `<rect x="66" y="66" width="28" height="30" rx="5" fill="#F5C26B" stroke="${INK}" stroke-width="2.2"/>` + heart(80, 81, 0.95, '#C9566E');
+    s += `<path d="M24,118 H136" stroke="${INK}" stroke-width="1.4" opacity=".4"/>`;
+    return doc(160, 142, s, '', 2);
+  }
+
+  function cerradura(abierta) {
+    let s = `<circle cx="24" cy="26" r="22" fill="url(#glowGold)" opacity="${abierta ? 1 : 0.4}"/>`;
+    s += abierta
+      ? `<path d="M15,22 V14 a9,9 0 0 1 17,-4" fill="none" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><path d="M15,22 V14 a9,9 0 0 1 17,-4" fill="none" stroke="#F5C26B" stroke-width="3" stroke-linecap="round"/>`
+      : `<path d="M15,22 V14 a9,9 0 0 1 18,0 V22" fill="none" stroke="${INK}" stroke-width="6"/><path d="M15,22 V14 a9,9 0 0 1 18,0 V22" fill="none" stroke="#C9B28A" stroke-width="3"/>`;
+    s += `<rect x="9" y="21" width="30" height="24" rx="5" fill="${abierta ? '#F5C26B' : '#9C8A6E'}" stroke="${INK}" stroke-width="2.5"/>`;
+    s += `<circle cx="24" cy="31" r="3.4" fill="${INK}"/><path d="M24,33 V39" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`;
+    return doc(48, 50, s, '', 2);
+  }
+
+  // Pergamino enrollado pequeño (flota sobre el cofre)
+  function pergaminoMini() {
+    const s = `<circle cx="60" cy="48" r="50" fill="url(#glowCream)" opacity=".6"/>` +
+      `<g transform="rotate(-4 60 48)"><rect x="14" y="16" width="92" height="64" rx="3" fill="#FBF3E2" stroke="${INK}" stroke-width="2.2"/>` +
+      `<rect x="6" y="10" width="108" height="10" rx="5" fill="#EADBBE" stroke="${INK}" stroke-width="2"/><rect x="6" y="76" width="108" height="10" rx="5" fill="#EADBBE" stroke="${INK}" stroke-width="2"/>` +
+      `<path d="M26,34 H90 M26,44 H86 M26,54 H78" stroke="#8C6A48" stroke-width="2" opacity=".7"/>${heart(88, 64, 0.6, '#C9566E')}</g>`;
+    return doc(120, 96, s, '', 2);
+  }
+
+  // Hoja grande del pergamino (fondo de la leyenda), 340×470
+  function pergaminoCarta() {
+    semilla(402);
+    const w = 340, h = 470;
+    const pts = [];
+    for (let t = 0; t <= w - 40; t += 10) pts.push([20 + t, 24 + rnd(-1.5, 1.5)]);
+    for (let t = 0; t <= h - 48; t += 10) pts.push([w - 20 + rnd(-1.5, 1.5), 24 + t]);
+    for (let t = w - 40; t >= 0; t -= 10) pts.push([20 + t, h - 24 + rnd(-1.5, 1.5)]);
+    for (let t = h - 48; t > 0; t -= 10) pts.push([20 + rnd(-1.5, 1.5), 24 + t]);
+    const papel = 'M' + pts.map(([x, y]) => `${f(x)},${f(y)}`).join(' L') + ' Z';
+    let s = `<path d="${papel}" fill="#000" opacity=".45" filter="url(#b8)" transform="translate(4,10)"/>`;
+    s += `<path d="${papel}" fill="url(#hojaP)" stroke="#8C6A48" stroke-width="1.4"/>`;
+    s += `<rect x="6" y="6" width="${w - 12}" height="26" rx="13" fill="url(#rollo)" stroke="${INK}" stroke-width="2.4"/>`;
+    s += `<rect x="6" y="${h - 32}" width="${w - 12}" height="26" rx="13" fill="url(#rollo)" stroke="${INK}" stroke-width="2.4"/>`;
+    s += `<rect x="38" y="48" width="${w - 76}" height="${h - 96}" fill="none" stroke="#C9A36A" stroke-width="1.2" opacity=".7"/>`;
+    s += heart(w / 2, h - 52, 1.1, '#C9566E');
+    return doc(w, h, s,
+      '<radialGradient id="hojaP" cx=".5" cy=".45" r=".8"><stop offset="0" stop-color="#FBF3E2"/><stop offset=".8" stop-color="#F1E2C4"/><stop offset="1" stop-color="#E2CBA0"/></radialGradient>' +
+      lg('rollo', [[0, '#F3E6C8'], [0.5, '#D9BF8E'], [1, '#B8955E']]), 2);
+  }
+
+  // Columna de luz dorada que sale del cofre
+  function columnaLuz() {
+    return doc(200, 760, `<rect x="40" y="0" width="120" height="760" fill="url(#col)" filter="url(#b16)"/><rect x="80" y="0" width="40" height="760" fill="url(#col2)" filter="url(#b8)"/>`,
+      '<linearGradient id="col" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#FFE7A8" stop-opacity=".9"/><stop offset="1" stop-color="#FFE7A8" stop-opacity="0"/></linearGradient>' +
+      '<linearGradient id="col2" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#FFFFFF" stop-opacity=".95"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>');
+  }
+
   // Texturas propias de una etapa: se crean al entrar al nivel y se liberan al salir
   function nivelArte(i, def) {
     const c = capas(i);
@@ -1097,6 +1205,18 @@ const Arte = (() => {
       ])),
       ventana: ventana(),
       vitral: vitral(),
+      tesoro_fondo: tesoroFondo(),
+      flor_0: flor('#FFF1D6'),
+      flor_1: flor('#F2A7B5'),
+      flor_2: flor('#BFD8FF'),
+      flor_3: flor('#F5C26B'),
+      cofre_grande: cofreGrande(false),
+      cofre_abierto: cofreGrande(true),
+      cerradura: cerradura(false),
+      cerradura_abierta: cerradura(true),
+      pergamino_mini: pergaminoMini(),
+      pergamino_carta: pergaminoCarta(),
+      columna_luz: columnaLuz(),
     };
   }
 
@@ -1108,5 +1228,5 @@ const Arte = (() => {
     [[0, 0x0B0F2A], [500, 0x1E2454], [844, 0x3A3F7A]],
   ];
 
-  return { catalogo, nivelArte, ANCHO_MAX, SUELO_INTRO, PAPEL, RUTA, ZONAS, CIELOS, TERRENO_Y, TABLERO, VITRAL };
+  return { catalogo, nivelArte, ANCHO_MAX, SUELO_INTRO, PAPEL, RUTA, ZONAS, CIELOS, TERRENO_Y, TABLERO, VITRAL, SUELO_TESORO };
 })();

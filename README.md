@@ -22,6 +22,7 @@ Abre `http://localhost:5173`. Si agregas `?reset` al final de la dirección, el 
 | Empezar o continuar | Toque | Enter o clic |
 | Volver al mapa | Botón de casa | Esc |
 | Silencio | Botón de altavoz | M |
+| Responder la trivia | Toque | 1, 2, 3 o clic |
 
 ### Atajos de prueba (solo para desarrollo)
 
