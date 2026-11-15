@@ -1265,6 +1265,7 @@ const NIVELES = [
   },
 ];
 
+const DURACION_CARTEL = 7500; // ms que se ve el cartel al entrar a una etapa
 const VEL_PLANEO = 115;   // caída máxima al planear (px/s)
 const CICLO_LUZ = 3600;   // ms de un ciclo de las plataformas de luz
 const FRASES_CAIDA =['¡Uy! Aquí te atrapo', 'No pasa nada, otra vez', '¡Casi! Tú puedes'];
@@ -1560,7 +1561,7 @@ class Nivel extends Phaser.Scene {
     }
     lineas.forEach((t) => t.setScrollFactor(0).setDepth(70).setAlpha(0));
     this.tweens.add({ targets: lineas, alpha: 1, duration: 500, delay: 300 });
-    this.tweens.add({ targets: lineas, alpha: 0, duration: 600, delay: 3800, onComplete: () => lineas.forEach((t) => t.destroy()) });
+    this.tweens.add({ targets: lineas, alpha: 0, duration: 800, delay: DURACION_CARTEL, onComplete: () => lineas.forEach((t) => t.destroy()) });
   }
 
   /* ---------- Bucle ---------- */
@@ -2556,6 +2557,7 @@ class Mini3 extends Phaser.Scene {
 
 /* ---------- Minijuego 4 · El vitral de las ruinas (rompecabezas deslizante 3×3) ---------- */
 const MEZCLA_VITRAL = 30;
+const PASOS_PISTA = 4; // vidrios que coloca cada pista
 
 class Mini4 extends Phaser.Scene {
   constructor() { super('Mini4'); }
@@ -2596,8 +2598,12 @@ class Mini4 extends Phaser.Scene {
     for (let id = 0; id < 9; id++) this.vidrios.push(this.crearVidrio(id));
     this.vidrios[8].setVisible(false); // el hueco
 
-    this.btnVer = boton(this, W / 2, arriba + V.h * e + 46, 'Ver vitral', () => this.verReferencia(),
-      { estilo: 'secundario', ancho: 200, alto: 52, tam: 24 }).setDepth(60);
+    const yBotones = arriba + V.h * e + 46;
+    const anchoBtn = Math.min(170, (W - 48) / 2);
+    this.btnVer = boton(this, W / 2 - anchoBtn / 2 - 8, yBotones, 'Ver vitral', () => this.verReferencia(),
+      { estilo: 'secundario', ancho: anchoBtn, alto: 52, tam: 22 }).setDepth(60);
+    this.btnPista = boton(this, W / 2 + anchoBtn / 2 + 8, yBotones, 'Pista', () => this.pista(),
+      { estilo: 'secundario', ancho: anchoBtn, alto: 52, tam: 22 }).setDepth(60);
 
     if (this.input.keyboard) {
       // Las flechas mueven hacia el hueco el vidrio que está del lado opuesto
@@ -2614,7 +2620,7 @@ class Mini4 extends Phaser.Scene {
     this.mezclar();
     tarjetaMensaje(this, 'El vitral de las ruinas',
       'Los vidrios de la ventana se desordenaron. Toca un vidrio junto al hueco para deslizarlo y recompón la imagen.' +
-      (TACTIL ? '' : ' También puedes usar las flechas.') + '\n\n"Ver vitral" te muestra la imagen completa 3 segundos.',
+      (TACTIL ? '' : ' También puedes usar las flechas.') + '\n\n"Ver vitral" te muestra la imagen completa 3 segundos y "Pista" coloca algunos vidrios por ti.',
       'Empezar', () => { this.estado = 'juego'; });
   }
 
@@ -2670,8 +2676,8 @@ class Mini4 extends Phaser.Scene {
 
   actualizar() { this.txtMov.setText(`Movimientos: ${this.movimientos}`); }
 
-  tocar(id) {
-    if (this.estado !== 'juego' || this.viendo) return;
+  tocar(id, desdePista = false) {
+    if (this.estado !== 'juego' || this.viendo || (this.ayudando && !desdePista)) return;
     const k = this.orden.indexOf(id);
     const h = this.orden.indexOf(8);
     if (!this.vecinos(h).includes(k)) {
@@ -2688,8 +2694,46 @@ class Mini4 extends Phaser.Scene {
     if (this.resuelto()) this.ganar();
   }
 
+  // Camino más corto a la solución (búsqueda en anchura): lista de vidrios que hay que tocar.
+  camino() {
+    const meta = '012345678';
+    const inicio = this.orden.join('');
+    const previo = new Map([[inicio, null]]);
+    const cola = [inicio];
+    for (let k = 0; k < cola.length && !previo.has(meta); k++) {
+      const e = cola[k];
+      const h = e.indexOf('8');
+      for (const v of this.vecinos(h)) {
+        const a = e.split('');
+        [a[h], a[v]] = [a[v], a[h]];
+        const n = a.join('');
+        if (!previo.has(n)) { previo.set(n, [e, +e[v]]); cola.push(n); }
+      }
+    }
+    const pasos = [];
+    for (let e = meta; previo.get(e); e = previo.get(e)[0]) pasos.unshift(previo.get(e)[1]);
+    return pasos;
+  }
+
+  // Pista: el vitral desliza por sí mismo los siguientes vidrios correctos.
+  pista() {
+    if (this.estado !== 'juego' || this.viendo || this.ayudando) return;
+    const pasos = this.camino().slice(0, PASOS_PISTA);
+    if (!pasos.length) return;
+    this.ayudando = true;
+    pasos.forEach((id, k) => {
+      this.time.delayedCall(k * 260, () => {
+        const v = this.vidrios[id];
+        const brillo = this.add.image(v.x, v.y, 'brillo').setTint(ORO).setScale(0.6).setAlpha(0.8).setBlendMode('ADD').setDepth(11);
+        this.tweens.add({ targets: brillo, alpha: 0, scale: 1.2, duration: 400, onComplete: () => brillo.destroy() });
+        this.tocar(id, true);
+        if (k === pasos.length - 1) this.ayudando = false;
+      });
+    });
+  }
+
   verReferencia() {
-    if (this.estado !== 'juego' || this.viendo) return;
+    if (this.estado !== 'juego' || this.viendo || this.ayudando) return;
     this.viendo = true;
     const cx = this.izq + this.lado / 2;
     const cy = this.arriba + this.lado / 2;
@@ -2708,6 +2752,7 @@ class Mini4 extends Phaser.Scene {
   ganar() {
     this.estado = 'fin';
     this.btnVer.setVisible(false);
+    this.btnPista.setVisible(false);
     const hueco = this.vidrios[8];
     hueco.setVisible(true).setAlpha(0);
     this.tweens.add({ targets: hueco, alpha: 1, duration: 500, delay: 200 });
@@ -2857,7 +2902,7 @@ class Tesoro extends Phaser.Scene {
       const elegir = () => {
         if (resuelta || this.estado !== 'trivia') return;
         Sonido.iniciar();
-        if (k === q.correcta) {
+        if ([].concat(q.correcta).includes(k)) {
           resuelta = true;
           pintar(ORO);
           Sonido.sfx('acierto');

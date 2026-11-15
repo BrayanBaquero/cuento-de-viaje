@@ -32,8 +32,8 @@ window.CONFIG = {
    *    { foto, titulo, texto, lugar, fecha }. El nivel pone tantas páginas como recuerdos haya. */
   etapas: [
     {
-      titulo: 'Nos conocimos',
-      frase: 'Todo empezó con un "hola" que cambió mi año.',
+      titulo: 'Primer paseo',
+      frase: 'Un pueblo, un camino y tú a mi lado.',
       recuerdos: [
         {
           foto: 'assets/fotos/guatavita.jpg', titulo: 'Nuestra primera salida a pueblear',
@@ -43,8 +43,8 @@ window.CONFIG = {
       ],
     },
     {
-      titulo: 'Primera cita',
-      frase: 'Llegué nervioso y me fui enamorado.',
+      titulo: 'Bajo la cascada',
+      frase: 'El agua caía y el tiempo se detuvo.',
       recuerdos: [
         {
           foto: 'assets/fotos/chorrera-1.jpg', titulo: 'Luz entre la montaña',
@@ -59,8 +59,8 @@ window.CONFIG = {
       ],
     },
     {
-      titulo: 'Nuestro lugar',
-      frase: 'Hay un rincón del mundo que ya es solo nuestro.',
+      titulo: 'Pintando juntos',
+      frase: 'Contigo hasta los colores son más bonitos.',
       recuerdos: [
         {
           foto: 'assets/fotos/catmania-1.jpg', titulo: 'Tarde de michis y arte',
@@ -80,7 +80,7 @@ window.CONFIG = {
       ],
     },
     {
-      titulo: 'Nuestro futuro',
+      titulo: 'Nuestro mañana',
       frase: 'Lo mejor todavía no ha pasado.',
       recuerdos: [
         {
@@ -95,12 +95,12 @@ window.CONFIG = {
   /* ---------------- Minijuego 2: Memoria (6 fotos = 6 parejas) ---------------- */
   memoria: {
     fotos: [
-      'assets/fotos/guatavita.jpg',
-      'assets/fotos/chorrera-1.jpg',
-      'assets/fotos/chorrera-2.jpg',
-      'assets/fotos/catmania-1.jpg',
-      'assets/fotos/catmania-3.jpg',
-      'assets/fotos/minigolf.jpg',
+      'assets/fotos/pies.jpg',
+      'assets/fotos/selfie-morada.jpg',
+      'assets/fotos/fuente.jpg',
+      'assets/fotos/planetario.jpg',
+      'assets/fotos/juntos.jpg',
+      'assets/fotos/catmania-2.jpg',
     ],
   },
 
@@ -117,21 +117,22 @@ window.CONFIG = {
 
   /* ---------------- Minijuego 4: Rompecabezas deslizante ---------------- */
   rompecabezas: {
-    foto: 'assets/fotos/chorrera-2.jpg',   // se recorta al centro en un cuadrado
+    foto: 'assets/fotos/ascensor.jpg',   // se recorta al centro en un cuadrado
   },
 
   /* ---------------- Trivia (cerradura extra del cofre) ----------------
-   *  correcta: índice de la opción correcta (0, 1 o 2).               */
+   *  correcta: índice de la opción correcta (0, 1 o 2), o una lista
+   *  de índices si hay varias respuestas válidas, por ejemplo [0, 1].   */
   trivia: [
     {
       pregunta: '¿Dónde fue nuestra primera cita?',
-      opciones: ['En un café', 'En el cine', 'En el parque'],
-      correcta: 0,
+      opciones: ['En un café', 'En el Parque Soratama', 'En el cine'],
+      correcta: 1,
     },
     {
-      pregunta: '¿Qué comida pedimos siempre?',
-      opciones: ['Sushi', 'Hamburguesas', 'Pizza'],
-      correcta: 2,
+      pregunta: 'Uno de nuestros juegos favoritos para jugar juntos',
+      opciones: ['Ajedrez', 'Mario Kart', 'UNO'],
+      correcta: [0, 1],
     },
     {
       pregunta: '¿Quién se ríe más de los chistes malos?',
