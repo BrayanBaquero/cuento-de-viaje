@@ -687,6 +687,8 @@ function svgATextura(escena, clave, arte) {
       resolver(true);
     };
     img.onerror = () => { URL.revokeObjectURL(url); resolver(false); };
+    // Si el navegador nunca responde, el juego sigue sin esa ilustración en vez de quedarse cargando
+    setTimeout(() => resolver(false), 15000);
     img.width = arte.w;
     img.height = arte.h;
     img.src = url;
@@ -862,6 +864,8 @@ class Boot extends Phaser.Scene {
       const etapa = parseInt(q.get('etapa'), 10);
       const destino = etapa >= 1 && etapa <= 4 ? 'Etapa' + etapa
         : ['Mapa', 'Cofre', 'Mini1', 'Mini2', 'Mini3', 'Mini4'].includes(q.get('escena')) ? q.get('escena') : 'Intro';
+      const aviso = document.getElementById('aviso-carga');
+      if (aviso) aviso.remove();
       this.scene.start(destino);
     });
   }

@@ -44,8 +44,31 @@
     });
     document.addEventListener('dblclick', function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+    // Si algo falla al cargar, se muestra en pantalla en vez de quedar en negro.
+    function avisoCarga(texto) {
+      var d = document.getElementById('aviso-carga');
+      if (!d) {
+        d = document.createElement('div');
+        d.id = 'aviso-carga';
+        d.style.cssText = 'position:fixed;left:16px;right:16px;bottom:24px;z-index:9;padding:12px 14px;border-radius:12px;' +
+          'background:#FBF3E2;color:#2A1B23;font:14px/1.4 Nunito,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.4)';
+        document.body.appendChild(d);
+      }
+      d.textContent = texto;
+    }
+    window.addEventListener('error', function (e) {
+      if (window.errorCarga) return; // se muestra el primer error, que suele ser la causa
+      window.errorCarga = true;
+      avisoCarga('No se pudo cargar el juego: ' + (e.message || (e.target && (e.target.src || e.target.href)) || 'error desconocido') + '. Recarga la página.');
+    }, true);
+    setTimeout(function () {
+      if (!window.juego || !window.juego.scene.getScenes(true).some(function (s) { return s.scene.key !== 'Boot' && s.scene.key !== 'HUD'; })) {
+        avisoCarga('El juego está tardando en cargar. Si no aparece en unos segundos, recarga la página.');
+      }
+    }, 25000);
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+  <script src="vendor/phaser.min.js"></script>
   <script src="config.js"></script>
   <script src="arte.js"></script>
   <script src="game.js"></script>
