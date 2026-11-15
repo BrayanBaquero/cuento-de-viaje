@@ -88,6 +88,16 @@ window.CONFIG = {
           texto: 'Contemplando tu swing al darle a la pelota, princesa.',
           lugar: 'Putt Colombia', fecha: '23 ago 2026',
         },
+        {
+          foto: 'assets/fotos/juntos.jpg', titulo: 'Tarde de museo',
+          texto: 'La obra de arte más bella que vi ese día fuiste tú, princesa.',
+          lugar: 'Museo Nacional', fecha: '6 sep 2026',
+        },
+        {
+          foto: 'assets/fotos/selfie-morada.jpg', titulo: 'Tarde mágica en el planetario',
+          texto: 'Un show de astronomía al buen ritmo del rock.',
+          lugar: 'Planetario', fecha: '17 oct 2026',
+        },
       ],
     },
   ],
