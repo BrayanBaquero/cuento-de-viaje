@@ -32,41 +32,41 @@ window.CONFIG = {
    *    { foto, titulo, texto, lugar, fecha }. El nivel pone tantas páginas como recuerdos haya. */
   etapas: [
     {
-      titulo: 'Primer paseo',
-      frase: 'Un pueblo, un camino y tú a mi lado.',
+      titulo: 'El comienzo',
+      frase: 'Todo gran viaje empieza con un primer paso.',
       recuerdos: [
         {
           foto: 'assets/fotos/guatavita.jpg', titulo: 'Nuestra primera salida a pueblear',
           texto: 'Descubrimos Guatavita juntos, pero lo mejor de todo no fue el paisaje, sino compartir cada sonrisa y cada paso a tu lado.',
           lugar: 'Guatavita', fecha: '7 jun 2026',
         },
-      ],
-    },
-    {
-      titulo: 'Bajo la cascada',
-      frase: 'El agua caía y el tiempo se detuvo.',
-      recuerdos: [
         {
           foto: 'assets/fotos/chorrera-1.jpg', titulo: 'Luz entre la montaña',
           texto: 'Dicen que La Chorrera es la cascada más alta, pero no hay altura que se compare con lo alto que me haces sentir cuando estoy contigo.',
           lugar: 'Cascada La Chorrera', fecha: '20 jun 2026',
         },
+      ],
+    },
+    {
+      titulo: 'Caminos juntos',
+      frase: 'Cada camino es más bonito si es contigo.',
+      recuerdos: [
         {
           foto: 'assets/fotos/chorrera-2.jpg', titulo: 'Donde el tiempo se detiene',
           texto: 'Llegamos hasta la gran caída de agua sin aliento, pero valió cada paso solo por sostenerte así y tomarnos esta foto.',
           lugar: 'Cascada La Chorrera', fecha: '20 jun 2026',
         },
-      ],
-    },
-    {
-      titulo: 'Pintando juntos',
-      frase: 'Contigo hasta los colores son más bonitos.',
-      recuerdos: [
         {
           foto: 'assets/fotos/catmania-1.jpg', titulo: 'Tarde de michis y arte',
           texto: 'Entre maullidos y pinceladas, esa tarde quedó grabada en mi corazón. Definitivamente, cualquier plan contigo se vuelve mágico.',
           lugar: 'Catmania', fecha: '2 ago 2026',
         },
+      ],
+    },
+    {
+      titulo: 'Momentos mágicos',
+      frase: 'Hay instantes que se quedan para siempre.',
+      recuerdos: [
         {
           foto: 'assets/fotos/catmania-2.jpg', titulo: 'Arte en concentración',
           texto: 'Tú toda concentrada dando las últimas pinceladas, mientras los michis peleaban atrás.',
@@ -96,11 +96,11 @@ window.CONFIG = {
   memoria: {
     fotos: [
       'assets/fotos/pies.jpg',
-      'assets/fotos/selfie-morada.jpg',
       'assets/fotos/fuente.jpg',
       'assets/fotos/planetario.jpg',
       'assets/fotos/juntos.jpg',
       'assets/fotos/catmania-2.jpg',
+      'assets/fotos/minigolf.jpg',
     ],
   },
 
@@ -154,7 +154,7 @@ window.CONFIG = {
     botonNo: 'No',
     // Textos que va tomando el botón "No" a medida que se encoge:
     textosNo: ['¿Segura?', 'Piénsalo bien…', '¿De verdad?', 'Última oportunidad'],
-    foto: 'assets/fotos/juntos.jpg',
+    foto: 'assets/fotos/selfie-morada.jpg',
     mensajeFinal: '¡Gracias por decir que sí!\nTe quiero muchísimo. 💖',
   },
 
