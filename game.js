@@ -3197,8 +3197,9 @@ class Tesoro extends Phaser.Scene {
 /* =====================================================================
  *  Arranque
  * ===================================================================== */
-// Los navegadores solo permiten sonar tras un gesto del usuario: cualquier toque o tecla sirve.
-['pointerdown', 'keydown', 'touchstart'].forEach((ev) => window.addEventListener(ev, () => Sonido.iniciar(), { passive: true }));
+// Los navegadores solo permiten sonar tras un gesto del usuario. En celulares el gesto válido es
+// soltar el dedo (touchend / pointerup / click), no tocar; se escuchan todos para no depender de cuál.
+['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach((ev) => window.addEventListener(ev, () => Sonido.iniciar(), { passive: true }));
 document.addEventListener('visibilitychange', () => {
   if (!Sonido.ctx) return;
   if (document.hidden) Sonido.ctx.suspend();
