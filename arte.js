@@ -251,6 +251,73 @@ const Arte = (() => {
   }
 
   /* =====================================================================
+   *  Brayan — aparece en el final (mismo estilo y cuadro que Angie, 80×96)
+   *  0-1 respirar · 2-7 caminar · 8 enamorado · 9 de la mano.
+   *  Mira a la derecha; pies en (40, 92).
+   * ===================================================================== */
+  function poseBrayan(p) {
+    const q = Object.assign({ y: 0, sy: 1, pl: 0, pr: 0, ll: 0, lr: 0, brazo: 0, mano: false, ojos: 'abiertos' }, p);
+    const piel = '#EFCFB4', pelo = '#2A1E1A', chaqueta = '#2E2A36', jean = '#55555F', tenis = '#D9D6CF';
+    let g = `<ellipse cx="0" cy="1" rx="14" ry="3" fill="#000" opacity=".22"/>`;
+    g += `<g transform="translate(0,${f(q.y)}) scale(1,${q.sy})">`;
+    const pierna = (hx, ang, alza) => {
+      const largo = 13 + alza;
+      return `<g transform="translate(${hx},-13) rotate(${f(ang)})"><rect x="-3" y="0" width="6" height="${f(largo)}" rx="2.4" fill="${jean}" stroke="${INK}" stroke-width="1.2"/><ellipse cx="1.6" cy="${f(largo - 0.3)}" rx="4.8" ry="2.6" fill="${tenis}" stroke="${INK}" stroke-width="1.2"/></g>`;
+    };
+    g += pierna(-4, q.pl, q.ll) + pierna(4, q.pr, q.lr);
+    // Brazo de atrás
+    g += `<path d="M-9,-33 L${f(-11 - q.brazo * 0.4)},-16" stroke="${INK}" stroke-width="6.6" stroke-linecap="round"/><path d="M-9,-33 L${f(-11 - q.brazo * 0.4)},-16" stroke="${chaqueta}" stroke-width="4" stroke-linecap="round"/>`;
+    // Chaqueta
+    g += `<path d="M-13,-10 L-12,-35 Q0,-41 12,-35 L13,-10 Q0,-6 -13,-10 Z" fill="${chaqueta}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`;
+    g += `<path d="M0,-37 V-9" stroke="#8E8A99" stroke-width="1" opacity=".7"/><path d="M-6,-38 L0,-32 L6,-38" fill="none" stroke="#8E8A99" stroke-width="1.2"/>`;
+    g += `<path d="M-13,-10 Q0,-6 13,-10" stroke="#FFFFFF" stroke-width="1" opacity=".18" fill="none"/>`;
+    // Brazo de adelante (balanceo o extendido para tomar la mano)
+    const fin = q.mano ? [21, -24] : [f(11 + q.brazo * 0.4), -15];
+    g += `<path d="M8,-33 L${fin[0]},${fin[1]}" stroke="${INK}" stroke-width="6.6" stroke-linecap="round"/><path d="M8,-33 L${fin[0]},${fin[1]}" stroke="${chaqueta}" stroke-width="4" stroke-linecap="round"/>`;
+    g += `<circle cx="${q.mano ? 23 : fin[0]}" cy="${fin[1] + (q.mano ? 0 : 1.5)}" r="2.8" fill="${piel}" stroke="${INK}" stroke-width="1.2"/>`;
+    // Cabeza
+    g += `<rect x="-3" y="-42" width="6" height="5" fill="${piel}" stroke="${INK}" stroke-width="1.2"/>`;
+    g += `<circle cx="-12.4" cy="-51" r="2.6" fill="${piel}" stroke="${INK}" stroke-width="1.2"/><circle cx="12.4" cy="-51" r="2.6" fill="${piel}" stroke="${INK}" stroke-width="1.2"/>`;
+    g += `<circle cx="0" cy="-52" r="12.5" fill="${piel}" stroke="${INK}" stroke-width="2"/>`;
+    // Barba ligera
+    g += `<path d="M-9,-48 Q-8,-40 0,-39 Q8,-40 9,-48 Q5,-43 0,-43 Q-5,-43 -9,-48 Z" fill="#6B5048" opacity=".28"/>`;
+    // Cabello oscuro corto
+    g += `<path d="M-13.5,-52 C-15,-67 11,-71 14,-56 L13,-52 C11,-58 8,-60 4,-59 C1,-63 -4,-61 -7,-58 C-9,-57 -11,-55 -13.5,-52 Z" fill="${pelo}" stroke="${INK}" stroke-width="1.3"/>`;
+    g += `<path d="M-6,-63 l3,-4 l2,4 M2,-64 l3,-4 l2,5" fill="${pelo}" stroke="${INK}" stroke-width="1"/>`;
+    // Cejas
+    g += `<path d="M-7.5,-56 h4.6 M3.6,-56 h4.6" stroke="${pelo}" stroke-width="1.8" stroke-linecap="round"/>`;
+    const ox = 1.2;
+    if (q.ojos === 'corazon') {
+      g += heart(-4.4 + ox, -50, 0.36, '#E2546E') + heart(4.8 + ox, -50, 0.36, '#E2546E');
+      g += `<ellipse cx="-8.4" cy="-45.6" rx="2.8" ry="1.6" fill="#F09AA8" opacity=".85"/><ellipse cx="9.2" cy="-45.6" rx="2.8" ry="1.6" fill="#F09AA8" opacity=".85"/>`;
+    } else if (q.ojos === 'feliz') {
+      g += `<path d="M${-7 + ox},-49.5 q2.4,-3 4.8,0 M${2.2 + ox},-49.5 q2.4,-3 4.8,0" stroke="${INK}" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+    } else {
+      g += `<ellipse cx="${-4.6 + ox}" cy="-50" rx="2.2" ry="3" fill="${INK}"/><ellipse cx="${4.6 + ox}" cy="-50" rx="2.2" ry="3" fill="${INK}"/>`;
+      g += `<circle cx="${-3.9 + ox}" cy="-51.2" r=".9" fill="#fff"/><circle cx="${5.3 + ox}" cy="-51.2" r=".9" fill="#fff"/>`;
+    }
+    g += q.ojos === 'abiertos'
+      ? `<path d="M-1,-44.6 Q${ox},-43.2 3.2,-44.6" stroke="${INK}" stroke-width="1.1" fill="none" stroke-linecap="round"/>`
+      : `<path d="M-2,-45 Q${ox},-41.4 4.2,-45" stroke="${INK}" stroke-width="1.2" fill="#C9566E" stroke-linecap="round"/>`;
+    return g + '</g>';
+  }
+
+  function brayan() {
+    const poses = [{}, { sy: 1.02 }];
+    for (let k = 0; k < 6; k++) {
+      const s = Math.sin((k / 6) * Math.PI * 2);
+      poses.push({ y: -Math.abs(s) * 2.2, pl: -30 * s, pr: 30 * s, ll: s < 0 ? 4 * s : 0, lr: s > 0 ? -4 * s : 0, brazo: 10 * s });
+    }
+    poses.push({ ojos: 'corazon', sy: 1.03 }); // 8 enamorado
+    poses.push({ ojos: 'corazon', mano: true }); // 9 de la mano
+    let s = '';
+    poses.forEach((p, i) => { s += `<g transform="translate(${i * CUADRO.w + CUADRO.w / 2},${CUADRO.pies})">${poseBrayan(p)}</g>`; });
+    const d = doc(CUADRO.w * poses.length, CUADRO.h, s, '', CUADRO.escala);
+    d.cuadros = { n: poses.length, w: CUADRO.w * CUADRO.escala, h: CUADRO.h * CUADRO.escala };
+    return d;
+  }
+
+  /* =====================================================================
    *  Portada: el prado del amanecer (1560 de ancho; se ve el centro)
    * ===================================================================== */
   const ANCHO_MAX = 1560;
@@ -1158,6 +1225,7 @@ const Arte = (() => {
   function catalogo() {
     return {
       angie: angie(),
+      brayan: brayan(),
       intro_fondo: introFondo(),
       mata: mata(),
       rama: rama(),

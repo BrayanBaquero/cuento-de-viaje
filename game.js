@@ -771,6 +771,14 @@ function crearAnimaciones(escena) {
     key: 'angie_correr', frameRate: 12, repeat: -1,
     frames: [2, 3, 4, 5, 6, 7].map((n) => ({ key: 'angie', frame: n })),
   });
+  if (escena.textures.exists('brayan')) {
+    const b = (frame, duration) => ({ key: 'brayan', frame, duration });
+    escena.anims.create({ key: 'brayan_quieto', frameRate: 1000, repeat: -1, frames: [b(0, 700), b(1, 700)] });
+    escena.anims.create({
+      key: 'brayan_caminar', frameRate: 11, repeat: -1,
+      frames: [2, 3, 4, 5, 6, 7].map((n) => ({ key: 'brayan', frame: n })),
+    });
+  }
 }
 
 /* =====================================================================
@@ -3127,7 +3135,46 @@ class Tesoro extends Phaser.Scene {
       scale: { min: 0.35, max: 0.7 }, rotate: { min: -20, max: 20 }, alpha: { start: 1, end: 0 }, frequency: 260, maxAliveParticles: 26,
     }).setDepth(28);
 
-    this.time.delayedCall(4200, () => this.pantallaFinal());
+    this.time.delayedCall(1300, () => this.heroina.quieta());
+    this.time.delayedCall(1400, () => this.llegaBrayan());
+  }
+
+  // Brayan llega caminando, se enamora al verla y la toma de la mano.
+  llegaBrayan() {
+    const angie = this.heroina;
+    const destino = angie.x - 42;
+    const b = this.add.sprite(-50, angie.y, 'brayan', 0).setOrigin(0.5, ANGIE_PIES).setScale(0.66).setDepth(11.5);
+    b.play('brayan_caminar');
+    this.tweens.add({
+      targets: b, x: destino, duration: 2600, ease: 'Sine.easeOut',
+      onComplete: () => {
+        b.stop();
+        b.setFrame(8);
+        Sonido.sfx('corazon');
+        angie.setFlipX(true); // lo mira
+        this.tweens.add({ targets: b, y: b.y - 10, duration: 180, yoyo: true, repeat: 1, ease: 'Sine.easeOut' });
+        const corazones = this.add.particles(b.x, b.y - 92, 'corazon', {
+          speed: { min: 40, max: 110 }, angle: { min: 220, max: 320 }, lifespan: 1100,
+          scale: { start: 0.45, end: 0.15 }, alpha: { start: 1, end: 0 }, emitting: false,
+        }).setDepth(29);
+        corazones.explode(7);
+        this.time.delayedCall(1200, () => corazones.destroy());
+
+        this.time.delayedCall(1100, () => {
+          angie.setFlipX(false);
+          b.setFrame(9); // de la mano
+          Sonido.sfx('acierto');
+          const manoX = (b.x + angie.x) / 2 + 6;
+          const manoY = angie.y - 34;
+          const brillo = this.add.image(manoX, manoY, 'brillo').setTint(0xF2A7B5).setScale(0.3).setBlendMode('ADD').setDepth(29);
+          this.tweens.add({ targets: brillo, scale: 1.1, alpha: 0, duration: 900, onComplete: () => brillo.destroy() });
+          const corazon = this.add.image(manoX - 6, angie.y - 128, 'corazon').setScale(0).setDepth(29);
+          this.tweens.add({ targets: corazon, scale: 0.7, duration: 400, ease: 'Back.easeOut' });
+          this.tweens.add({ targets: corazon, y: angie.y - 200, alpha: 0, duration: 2200, delay: 600, ease: 'Sine.easeIn', onComplete: () => corazon.destroy() });
+          this.time.delayedCall(2700, () => this.pantallaFinal());
+        });
+      },
+    });
   }
 
   pantallaFinal() {

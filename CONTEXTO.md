@@ -68,7 +68,7 @@
 
 - **Escena `Cofre` (clase `Tesoro`):** campo de flores bajo la luna. El cofre tiembla, las 4 llaves vuelan desde el HUD a sus cerraduras, trivia de `CFG.trivia` (reintento al fallar; teclas 1–3 en PC), columna de luz, pergamino con `CFG.final.leyenda` en máquina de escribir (un toque la completa) y la pregunta.
 - **Botón "No":** huye con cada `pointerdown` (y al pasar el mouse en PC). Tras 5 intentos se encoge y toma los textos de `CFG.final.textosNo`; al agotarlos se convierte en otro "Sí".
-- **"Sí":** las flores se abren en ola desde el cofre, suben luciérnagas y corazones, cambia la música y aparece la página final con `CFG.final.foto` y `CFG.final.mensajeFinal`.
+- **"Sí":** las flores se abren en ola desde el cofre, suben luciérnagas y corazones; llega caminando Brayan (textura `brayan`, mismo estilo y cuadro que Angie: 0-1 respirar, 2-7 caminar, 8 ojos de corazón, 9 de la mano), se enamora al verla y la toma de la mano; cambia la música y aparece la página final con `CFG.final.foto` y `CFG.final.mensajeFinal`.
 - **Audio (`Musica`):** temas generados por escena (`intro`, `mapa`, `etapa1`..`etapa4` también en los minijuegos, `cofre`, `propuesta` con melodía fija de caja de música, `final`). Timbres: caja de música, arpa, campanas, flauta y colchón. Ambiente: viento y pájaros (I), río (II), brisa e insectos (III), viento nocturno y brillos (IV). Un mp3 en `CFG.musica[clave]` reemplaza al tema generado. El audio se desbloquea con el primer toque o tecla y se suspende con la pestaña oculta.
 
 ### Pendiente
