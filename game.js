@@ -196,37 +196,88 @@ const Sonido = {
 };
 
 /* =====================================================================
- *  Música y ambiente generados por código (timbres de cuento).
- *  Cada escena pide un tema con Musica.tocar(clave). Si CFG.musica[clave]
- *  tiene un mp3, se usa ese archivo en su lugar.
+ *  Música y ambiente generados por código.
+ *  Instrumentos: guitarra y arpa punteadas (síntesis de cuerda
+ *  Karplus-Strong), cuerdas de fondo, flauta, caja de música y campanas,
+ *  todo con reverberación de sala. Cada escena tiene su tema: acordes,
+ *  bajo, arpegio y melodía. Un mp3 en CFG.musica[clave] reemplaza al tema.
  * ===================================================================== */
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+const _ = null; // en las melodías: la nota anterior se mantiene; 0 = silencio
 
-// acordes: notas MIDI (se repiten por compás). melodia: 8 corcheas por compás (null = silencio).
-const TEMAS_MUSICA = {
-  intro: { bpm: 72, inst: 'caja', densidad: 0.45, acordes: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]], amb: ['viento', 'pajaros'] },
-  mapa: { bpm: 68, inst: 'arpa', densidad: 0.5, acordes: [[48, 52, 55], [55, 59, 62], [57, 60, 64], [53, 57, 60]], amb: ['brillos'] },
-  etapa1: { bpm: 80, inst: 'arpa', densidad: 0.5, acordes: [[50, 54, 57], [55, 59, 62], [59, 62, 66], [57, 61, 64]], amb: ['viento', 'pajaros'] },
-  etapa2: { bpm: 76, inst: 'caja', densidad: 0.45, acordes: [[53, 57, 60], [48, 52, 55], [50, 53, 57], [46, 50, 53]], amb: ['rio'] },
-  etapa3: { bpm: 70, inst: 'flauta', densidad: 0.3, acordes: [[52, 55, 59], [48, 52, 55], [55, 59, 62], [50, 54, 57]], amb: ['brisa', 'insectos'] },
-  etapa4: { bpm: 64, inst: 'campana', densidad: 0.3, acordes: [[57, 60, 64], [52, 55, 59], [53, 57, 60], [55, 59, 62]], amb: ['vientoNoche', 'brillos'] },
-  cofre: { bpm: 58, inst: 'campana', densidad: 0.22, acordes: [[50, 53, 57], [46, 50, 53], [53, 57, 60], [48, 52, 55]], amb: ['vientoNoche'] },
-  // Tema de la propuesta: melodía fija con caja de música
-  propuesta: {
-    bpm: 66, inst: 'caja', acordes: [[48, 52, 55], [55, 59, 62], [57, 60, 64], [53, 57, 60]], amb: ['vientoNoche'],
-    melodia: [
-      [72, null, 76, 79, 77, 76, 74, null], [74, null, 71, 74, 79, null, 77, 76],
-      [76, null, 72, 76, 81, null, 79, 77], [77, 76, 74, 72, 74, null, null, null],
-    ],
-  },
-  final: { bpm: 92, inst: 'caja', inst2: 'arpa', densidad: 0.6, acordes: [[48, 52, 55], [53, 57, 60], [57, 60, 64], [55, 59, 62]], amb: ['brillos'] },
+// Arpegios: índices sobre [fundamental, tercera, quinta, y las tres una octava arriba]; null = nada.
+const PATRONES = {
+  punteo: [0, 4, 2, 5, 1, 4, 2, 3],
+  cascada: [0, 1, 2, 3, 4, 5, 4, 3],
+  lento: [0, null, 2, null, 4, null, 2, null],
+  vals: [0, 2, 4, 3, 2, 4, 5, 4],
 };
 
+// Cada tema: compases de 8 corcheas. acordes y notas tienen la misma cantidad de compases.
+const TEMAS_MUSICA = {
+  // Portada: amanecer esperanzado (Re mayor)
+  intro: {
+    bpm: 76, arpegio: 'guitarra', patron: 'punteo', fondo: true, melodia: ['flauta'], amb: ['viento', 'pajaros'],
+    acordes: [[50, 54, 57], [49, 52, 57], [47, 50, 54], [43, 47, 50]],
+    notas: [[78, _, 76, 74, 76, _, _, 0], [73, _, 74, 76, 69, _, _, 0], [74, _, 76, 78, 81, _, 78, _], [79, _, 78, 76, 74, _, _, 0]],
+  },
+  // Mapa: arpa y caja de música (Do mayor)
+  mapa: {
+    bpm: 68, arpegio: 'arpa', patron: 'cascada', fondo: true, melodia: ['caja'], amb: ['brillos'],
+    acordes: [[48, 52, 55], [45, 48, 52], [41, 45, 48], [43, 47, 50]],
+    notas: [[76, _, 79, _, 84, _, _, 0], [81, _, 79, 76, 72, _, _, 0], [77, _, 76, 74, 72, _, 74, _], [74, _, _, _, 0, 0, 0, 0]],
+  },
+  // Etapa I: prado, alegre (Sol mayor)
+  etapa1: {
+    bpm: 84, arpegio: 'guitarra', patron: 'punteo', fondo: true, melodia: ['flauta'], amb: ['viento', 'pajaros'],
+    acordes: [[43, 47, 50], [42, 45, 50], [40, 43, 47], [36, 40, 43]],
+    notas: [[71, 74, 79, _, 78, _, 74, _], [74, 76, 78, _, 76, _, 74, _], [71, 74, 76, _, 79, _, 78, 76], [76, _, 74, _, _, _, 0, 0]],
+  },
+  // Etapa II: pueblo al atardecer, cálido (Fa mayor)
+  etapa2: {
+    bpm: 78, arpegio: 'arpa', patron: 'vals', fondo: true, melodia: ['guitarra'], amb: ['rio'],
+    acordes: [[41, 45, 48], [38, 41, 45], [46, 50, 53], [36, 40, 43]],
+    notas: [[77, _, 76, 77, 81, _, _, 0], [79, _, 77, 76, 74, _, _, 0], [74, _, 76, 77, 79, _, 77, _], [76, _, _, _, 72, _, 0, 0]],
+  },
+  // Etapa III: bosque antiguo, misterioso y suave (Mi menor)
+  etapa3: {
+    bpm: 72, arpegio: 'arpa', patron: 'cascada', fondo: true, melodia: ['flauta'], amb: ['brisa', 'insectos'],
+    acordes: [[40, 43, 47], [36, 40, 43], [43, 47, 50], [38, 42, 45]],
+    notas: [[71, _, _, 74, 76, _, 74, _], [72, _, 71, 69, 67, _, _, 0], [67, _, 71, _, 74, _, 76, _], [74, _, _, _, 0, 0, 0, 0]],
+  },
+  // Etapa IV: noche estrellada (La menor)
+  etapa4: {
+    bpm: 66, arpegio: 'arpa', patron: 'cascada', fondo: true, melodia: ['campana'], amb: ['vientoNoche', 'brillos'],
+    acordes: [[45, 48, 52], [41, 45, 48], [48, 52, 55], [43, 47, 50]],
+    notas: [[81, _, 79, _, 76, _, _, 0], [77, _, 76, _, 72, _, _, 0], [72, _, 76, _, 79, _, 84, _], [83, _, _, _, 79, _, 0, 0]],
+  },
+  // Tesoro: expectativa, sin melodía (Re menor)
+  cofre: {
+    bpm: 60, arpegio: 'arpa', patron: 'lento', fondo: true, amb: ['vientoNoche'],
+    acordes: [[38, 41, 45], [46, 50, 53], [43, 46, 50], [45, 49, 52]],
+  },
+  // La pregunta: tema emotivo con caja de música y arpa (Do mayor)
+  propuesta: {
+    bpm: 66, arpegio: 'guitarra', patron: 'lento', fondo: true, melodia: ['caja', 'arpa'], siempre: true, amb: ['vientoNoche'],
+    acordes: [[48, 52, 55], [43, 47, 50], [45, 48, 52], [41, 45, 48]],
+    notas: [[72, _, 76, 79, 77, 76, 74, _], [74, _, 71, 74, 79, _, 77, 76], [76, _, 72, 76, 81, _, 79, 77], [77, 76, 74, 72, 74, _, _, 0]],
+  },
+  // ¡Sí!: celebración luminosa (Do mayor)
+  final: {
+    bpm: 96, arpegio: 'guitarra', patron: 'punteo', arpegio2: 'arpa', fondo: true, melodia: ['flauta', 'caja'], siempre: true, amb: ['brillos'],
+    acordes: [[48, 52, 55], [41, 45, 48], [45, 48, 52], [43, 47, 50]],
+    notas: [[79, _, 76, 79, 84, _, 79, _], [81, _, 77, 81, 84, _, 81, _], [84, _, 83, 81, 79, _, 76, _], [74, _, 76, _, 79, _, _, 0]],
+  },
+};
+
+const VOLUMEN = { guitarra: 0.2, arpa: 0.17, bajo: 0.2, flauta: 0.11, caja: 0.08, campana: 0.07 };
+
 const Musica = {
-  bus: null,
-  actual: null,      // { clave, gain, intervalo, ambiente: [], audio }
+  entrada: null,   // nodo al que se conectan los temas (seco + reverberación)
+  actual: null,    // { clave, gain, intervalo, ambiente: [], audio }
   pendiente: null,
   ruido: null,
+  cuerdas: new Map(), // sonidos de cuerda ya sintetizados (por instrumento y nota)
 
   tocar(clave) {
     if (this.actual && this.actual.clave === clave) return;
@@ -234,21 +285,47 @@ const Musica = {
     if (Sonido.ctx && Sonido.ctx.state === 'running') this.arrancar();
   },
 
-  // Se llama al crear o reanudar el contexto de audio.
+  // Cadena de salida: temas → (seco + sala) → compresor → volumen → master
+  preparar() {
+    if (this.entrada) return;
+    const ctx = Sonido.ctx;
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -20;
+    comp.ratio.value = 3;
+    const vol = ctx.createGain();
+    vol.gain.value = 1.35;
+    comp.connect(vol).connect(Sonido.master);
+    this.entrada = ctx.createGain();
+    this.entrada.connect(comp);
+    // Reverberación: respuesta de una sala generada con ruido que se apaga
+    const sala = ctx.createConvolver();
+    const largo = Math.floor(ctx.sampleRate * 2.6);
+    const ir = ctx.createBuffer(2, largo, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = ir.getChannelData(c);
+      for (let i = 0; i < largo; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / largo, 2.6);
+    }
+    sala.buffer = ir;
+    this.envio = ctx.createGain();
+    this.envio.gain.value = 0.38;
+    this.envio.connect(sala).connect(comp);
+    // Ruido para el viento, el río y el soplo de la flauta
+    this.ruido = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const r = this.ruido.getChannelData(0);
+    for (let i = 0; i < r.length; i++) r[i] = Math.random() * 2 - 1;
+  },
+
   arrancar() {
     const clave = this.pendiente;
     if (!clave || (this.actual && this.actual.clave === clave)) return;
     const ctx = Sonido.ctx;
-    if (!this.bus) {
-      this.bus = ctx.createGain();
-      this.bus.gain.value = 0.55;
-      this.bus.connect(Sonido.master);
-    }
+    this.preparar();
     this.detener();
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.0001, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(1, ctx.currentTime + 1.6);
-    gain.connect(this.bus);
+    gain.connect(this.entrada);
+    gain.connect(this.envio);
     const pista = { clave, gain, ambiente: [] };
     this.actual = pista;
 
@@ -301,106 +378,178 @@ const Musica = {
   },
 
   paso(pista, tema, paso, t, corchea) {
-    const compas = Math.floor(paso / 8) % tema.acordes.length;
+    const n = tema.acordes.length;
+    const compas = Math.floor(paso / 8) % n;
+    const s = paso % 8;
+    const ciclo = Math.floor(paso / (8 * n));
     const acorde = tema.acordes[compas];
     const dest = pista.gain;
-    const r = Math.random();
-    if (paso % 8 === 0) {
-      this.colchon(acorde, t, corchea * 8, dest);
-      this.instrumento('arpa', midi(acorde[0] - 12), t, 0.09, dest);
+    const humano = () => t + Math.random() * 0.012;
+
+    if (s === 0) {
+      if (tema.fondo) this.fondo(acorde, t, corchea * 8, dest);
+      this.pulsar('guitarra', acorde[0] - 12, t, VOLUMEN.bajo, dest, 1800);
+    } else if (s === 4) {
+      this.pulsar('guitarra', acorde[2] - 12, t, VOLUMEN.bajo * 0.6, dest, 1800);
     }
-    if (tema.melodia) {
-      const n = tema.melodia[compas][paso % 8];
-      if (n) this.instrumento(tema.inst, midi(n), t, 0.13, dest);
-    } else if (r < tema.densidad * (paso % 2 === 0 ? 1.3 : 0.7)) {
-      const nota = acorde[Math.floor(Math.random() * acorde.length)] + (Math.random() < 0.35 ? 24 : 12);
-      this.instrumento(paso % 4 === 2 && tema.inst2 ? tema.inst2 : tema.inst, midi(nota), t, 0.1, dest);
+
+    // Arpegio (y uno de apoyo en la otra mitad del compás, si el tema lo tiene)
+    const tonos = [acorde[0], acorde[1], acorde[2], acorde[0] + 12, acorde[1] + 12, acorde[2] + 12];
+    const idx = PATRONES[tema.patron][s];
+    if (idx !== null && idx !== undefined) {
+      const oct = tema.arpegio === 'arpa' ? 12 : 0;
+      this.pulsar(tema.arpegio, tonos[idx] + oct, humano(), VOLUMEN[tema.arpegio] * (s % 2 ? 0.75 : 1), dest);
     }
-    // Ambiente puntual
+    if (tema.arpegio2 && s % 2 === 1) this.pulsar(tema.arpegio2, tonos[(s + 2) % 6] + 24, humano(), VOLUMEN.arpa * 0.5, dest);
+
+    // Melodía: descansa uno de cada tres ciclos para que el tema respire
+    if (tema.notas && (tema.siempre || ciclo % 3 !== 2)) {
+      const fila = tema.notas[compas];
+      const nota = fila[s];
+      if (nota) {
+        let largo = 1;
+        while (s + largo < 8 && fila[s + largo] === _) largo++;
+        tema.melodia.forEach((inst, k) => {
+          const subir = k > 0 && inst === 'caja' ? 12 : 0;
+          this.instrumento(inst, nota + subir, humano(), largo * corchea, VOLUMEN[inst] * (k > 0 ? 0.6 : 1), dest);
+        });
+      }
+    }
+
     (tema.amb || []).forEach((tipo) => {
       if (tipo === 'pajaros' && Math.random() < 0.05) this.pajaro(t, dest);
       if (tipo === 'insectos' && Math.random() < 0.12) this.grillo(t, dest);
-      if (tipo === 'brillos' && Math.random() < 0.08) this.instrumento('campana', midi(84 + [0, 2, 4, 7, 9, 12][Math.floor(Math.random() * 6)]), t, 0.035, dest);
+      if (tipo === 'brillos' && Math.random() < 0.06) this.instrumento('campana', 84 + [0, 2, 4, 7, 9, 12][Math.floor(Math.random() * 6)], t, 1, 0.03, dest);
     });
   },
 
-  instrumento(tipo, f, t, vol, dest) {
+  // Cuerda punteada (Karplus-Strong): se sintetiza una vez por nota y se reutiliza.
+  cuerda(tipo, n) {
+    const clave = tipo + n;
+    if (this.cuerdas.has(clave)) return this.cuerdas.get(clave);
     const ctx = Sonido.ctx;
+    const sr = ctx.sampleRate;
+    const largo = Math.floor(sr * (tipo === 'arpa' ? 2.8 : 2));
+    const buf = ctx.createBuffer(1, largo, sr);
+    const d = buf.getChannelData(0);
+    const N = Math.max(2, Math.round(sr / midi(n)));
+    // Excitación: ruido suavizado (el arpa se pulsa con la yema, más suave; la guitarra con púa, más brillante)
+    const suave = tipo === 'arpa' ? 0.55 : 0.2;
+    let prev = 0;
+    for (let i = 0; i < N; i++) { prev = prev * suave + (Math.random() * 2 - 1) * (1 - suave); d[i] = prev; }
+    const caida = tipo === 'arpa' ? 0.998 : 0.994;
+    d[N] = d[0] * caida;
+    for (let i = N + 1; i < largo; i++) d[i] = caida * 0.5 * (d[i - N] + d[i - N - 1]);
+    let pico = 0;
+    for (let i = 0; i < N * 3 && i < largo; i++) pico = Math.max(pico, Math.abs(d[i]));
+    if (pico > 0) for (let i = 0; i < largo; i++) d[i] /= pico;
+    // Final suave para que no corte en seco
+    const cola = Math.floor(sr * 0.05);
+    for (let i = 0; i < cola; i++) d[largo - 1 - i] *= i / cola;
+    this.cuerdas.set(clave, buf);
+    return buf;
+  },
+
+  pulsar(tipo, n, t, vol, dest, corte) {
+    const ctx = Sonido.ctx;
+    const src = ctx.createBufferSource();
+    src.buffer = this.cuerda(tipo, n);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = corte || (tipo === 'arpa' ? 5200 : 3400);
+    const g = ctx.createGain();
+    g.gain.value = vol;
+    src.connect(lp).connect(g).connect(dest);
+    src.start(t);
+  },
+
+  instrumento(tipo, n, t, dur, vol, dest) {
+    if (tipo === 'guitarra' || tipo === 'arpa') { this.pulsar(tipo, n, t, vol, dest); return; }
+    const ctx = Sonido.ctx;
+    const f = midi(n);
     const env = ctx.createGain();
     env.connect(dest);
-    const osc = (forma, frec, g = 1, dur = 2) => {
+    const osc = (forma, frec, g, fin) => {
       const o = ctx.createOscillator();
       o.type = forma;
       o.frequency.setValueAtTime(frec, t);
-      if (g === 1) { o.connect(env); } else {
-        const gg = ctx.createGain();
-        gg.gain.setValueAtTime(g, t);
-        gg.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-        o.connect(gg).connect(env);
-      }
+      const gg = ctx.createGain();
+      gg.gain.setValueAtTime(g, t);
+      o.connect(gg).connect(env);
       o.start(t);
-      o.stop(t + dur + 0.1);
+      o.stop(t + fin + 0.1);
       return o;
     };
     if (tipo === 'caja') {
       env.gain.setValueAtTime(0.0001, t);
       env.gain.exponentialRampToValueAtTime(vol, t + 0.006);
-      env.gain.exponentialRampToValueAtTime(0.0001, t + 1.5);
-      osc('sine', f, 1, 1.5);
-      osc('sine', f * 4.02, 0.22, 0.35);
-    } else if (tipo === 'arpa') {
-      const lp = ctx.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.setValueAtTime(4200, t);
-      lp.frequency.exponentialRampToValueAtTime(700, t + 0.4);
-      env.disconnect();
-      env.connect(lp).connect(dest);
-      env.gain.setValueAtTime(0.0001, t);
-      env.gain.exponentialRampToValueAtTime(vol, t + 0.004);
-      env.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
-      osc('triangle', f, 1, 1.8);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+      osc('sine', f, 1, 1.6);
+      osc('sine', f * 4.02, 0.2, 0.4);
     } else if (tipo === 'campana') {
       env.gain.setValueAtTime(0.0001, t);
       env.gain.exponentialRampToValueAtTime(vol, t + 0.004);
-      env.gain.exponentialRampToValueAtTime(0.0001, t + 2.6);
-      osc('sine', f, 1, 2.6);
-      osc('sine', f * 2.76, 0.4, 1.2);
-      osc('sine', f * 5.4, 0.18, 0.6);
-    } else { // flauta
+      env.gain.exponentialRampToValueAtTime(0.0001, t + 2.8);
+      osc('sine', f, 1, 2.8);
+      osc('sine', f * 2.76, 0.35, 1.2);
+      osc('sine', f * 5.4, 0.15, 0.6);
+    } else { // flauta: ataque suave, aliento y vibrato que aparece poco a poco
+      const fin = Math.max(0.25, dur * 0.95);
       env.gain.setValueAtTime(0.0001, t);
-      env.gain.exponentialRampToValueAtTime(vol * 0.8, t + 0.09);
-      env.gain.setValueAtTime(vol * 0.8, t + 0.5);
-      env.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
-      const o = osc('sine', f, 1, 1.1);
+      env.gain.exponentialRampToValueAtTime(vol, t + 0.08);
+      env.gain.setValueAtTime(vol * 0.9, t + fin);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + fin + 0.25);
+      const o = osc('sine', f, 1, fin + 0.3);
+      osc('triangle', f * 2, 0.08, fin + 0.3);
       const vib = ctx.createOscillator();
       const prof = ctx.createGain();
-      vib.frequency.value = 5;
-      prof.gain.value = f * 0.006;
+      vib.frequency.value = 5.2;
+      prof.gain.setValueAtTime(0, t);
+      prof.gain.linearRampToValueAtTime(f * 0.006, t + Math.min(0.5, fin));
       vib.connect(prof).connect(o.frequency);
       vib.start(t);
-      vib.stop(t + 1.2);
+      vib.stop(t + fin + 0.4);
+      // Soplo al empezar la nota
+      if (this.ruido) {
+        const soplo = ctx.createBufferSource();
+        soplo.buffer = this.ruido;
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = f * 2;
+        bp.Q.value = 1.5;
+        const gs = ctx.createGain();
+        gs.gain.setValueAtTime(vol * 0.35, t);
+        gs.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+        soplo.connect(bp).connect(gs).connect(dest);
+        soplo.start(t, Math.random());
+        soplo.stop(t + 0.15);
+      }
     }
   },
 
-  // Acorde suave sostenido durante el compás
-  colchon(acorde, t, dur, dest) {
+  // Cuerdas de fondo: acorde sostenido durante el compás, con entrada lenta
+  fondo(acorde, t, dur, dest) {
     const ctx = Sonido.ctx;
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.value = 1100;
+    lp.frequency.value = 1300;
+    lp.Q.value = 0.4;
     const env = ctx.createGain();
     env.gain.setValueAtTime(0.0001, t);
-    env.gain.exponentialRampToValueAtTime(0.035, t + dur * 0.35);
-    env.gain.exponentialRampToValueAtTime(0.0001, t + dur * 1.15);
+    env.gain.exponentialRampToValueAtTime(0.045, t + dur * 0.4);
+    env.gain.setValueAtTime(0.045, t + dur * 0.85);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + dur * 1.2);
     lp.connect(env).connect(dest);
-    acorde.forEach((n) => [-4, 4].forEach((cents) => {
+    acorde.forEach((n) => [-7, 7].forEach((cents) => {
       const o = ctx.createOscillator();
-      o.type = 'triangle';
-      o.frequency.value = midi(n);
+      o.type = 'sawtooth';
+      o.frequency.value = midi(n + 12);
       o.detune.value = cents;
-      o.connect(lp);
+      const g = ctx.createGain();
+      g.gain.value = 0.3;
+      o.connect(g).connect(lp);
       o.start(t);
-      o.stop(t + dur * 1.2);
+      o.stop(t + dur * 1.25);
     }));
   },
 
@@ -414,7 +563,7 @@ const Musica = {
       o.frequency.setValueAtTime(base, t0);
       o.frequency.exponentialRampToValueAtTime(base * 1.35, t0 + 0.06);
       g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(0.025, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.02, t0 + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.08);
       o.connect(g).connect(dest);
       o.start(t0);
@@ -430,7 +579,7 @@ const Musica = {
       const g = ctx.createGain();
       o.frequency.value = 4300;
       g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(0.012, t0 + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.01, t0 + 0.008);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.035);
       o.connect(g).connect(dest);
       o.start(t0);
@@ -440,19 +589,14 @@ const Musica = {
 
   // Viento, río y brisa: ruido filtrado en bucle, con una ondulación lenta
   ambienteContinuo(pista, tipo) {
+    const ctx = Sonido.ctx;
     const cfg = {
-      viento: { f: 500, q: 0.6, tipoF: 'bandpass', vol: 0.05, lfo: 0.08 },
-      vientoNoche: { f: 320, q: 0.8, tipoF: 'bandpass', vol: 0.05, lfo: 0.06 },
-      brisa: { f: 900, q: 0.5, tipoF: 'bandpass', vol: 0.025, lfo: 0.12 },
-      rio: { f: 750, q: 0.3, tipoF: 'lowpass', vol: 0.045, lfo: 0.3 },
+      viento: { f: 500, q: 0.6, tipoF: 'bandpass', vol: 0.04, lfo: 0.08 },
+      vientoNoche: { f: 320, q: 0.8, tipoF: 'bandpass', vol: 0.04, lfo: 0.06 },
+      brisa: { f: 900, q: 0.5, tipoF: 'bandpass', vol: 0.02, lfo: 0.12 },
+      rio: { f: 750, q: 0.3, tipoF: 'lowpass', vol: 0.035, lfo: 0.3 },
     }[tipo];
     if (!cfg) return;
-    const ctx = Sonido.ctx;
-    if (!this.ruido) {
-      this.ruido = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
-      const d = this.ruido.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    }
     const src = ctx.createBufferSource();
     src.buffer = this.ruido;
     src.loop = true;
