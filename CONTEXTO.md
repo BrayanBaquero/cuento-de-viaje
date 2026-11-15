@@ -36,8 +36,7 @@
   - Una rama por fase (`fase-N/...`).
   - Los commits terminan con `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
   - Los PR los hará el usuario más adelante. GitHub CLI está instalado en `C:\Program Files\GitHub CLI\gh.exe`, pero **aún no ha iniciado sesión**.
-  - El repositorio será **privado**, para que Angie no lo encuentre.
-  - Las fotos personales están en `.gitignore`.
+  - Por decisión del usuario el repositorio es **público** y las fotos se suben, para publicar en GitHub Pages (la cuenta gratuita no admite Pages en repositorios privados).
 - **Restricciones técnicas:**
   - Phaser 3 desde CDN (3.90.0) y JavaScript vanilla, sin bundlers.
   - Gráficos generados por código (SVG en `arte.js`).
@@ -140,4 +139,4 @@ En `.claude/launch.json` está configurado como `juego` en el puerto 5173 (el 80
 - En tamaño celular el headless deja el canvas descentrado: es un artefacto suyo, no del juego.
 - Las animaciones con tween no avanzan bien en headless, por eso existe `?captura`.
 
-**Fotos:** en `assets/fotos/` (ignoradas por git) están las 8 del juego anterior del usuario (brayanbaquero.github.io/do-you-wanna-be), con sus títulos, mensajes, lugares y fechas ya pasados a `config.js`: repartidas en orden cronológico 2-2-2-3 por etapa (la IV incluye museo y planetario); `selfie-morada.jpg` es la foto final (después del "Sí"). Fotos extra del usuario (`pies`, `ascensor`, `selfie-morada`, `fuente`, `planetario`) van en la memoria y el vitral para no repetir las del diario. Nombres de etapa genéricos (no ligados a las salidas): El comienzo, Caminos juntos, Momentos mágicos, Nuestro mañana. La trivia acepta `correcta` como lista. El vitral tiene botón "Pista" (coloca 4 vidrios con el camino más corto). Cada etapa tiene de 1 a 3 recuerdos y el nivel pone esa cantidad de páginas. Del juego anterior solo se tomaron fotos y textos, nada de su estilo.
+**Fotos:** en `assets/fotos/` (subidas al repositorio) están las 8 del juego anterior del usuario (brayanbaquero.github.io/do-you-wanna-be), con sus títulos, mensajes, lugares y fechas ya pasados a `config.js`: repartidas en orden cronológico 2-2-2-3 por etapa (la IV incluye museo y planetario); `selfie-morada.jpg` es la foto final (después del "Sí"). Fotos extra del usuario (`pies`, `ascensor`, `selfie-morada`, `fuente`, `planetario`) van en la memoria y el vitral para no repetir las del diario. Nombres de etapa genéricos (no ligados a las salidas): El comienzo, Caminos juntos, Momentos mágicos, Nuestro mañana. La trivia acepta `correcta` como lista. El vitral tiene botón "Pista" (coloca 4 vidrios con el camino más corto). Cada etapa tiene de 1 a 3 recuerdos y el nivel pone esa cantidad de páginas. Del juego anterior solo se tomaron fotos y textos, nada de su estilo.

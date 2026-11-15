@@ -3,8 +3,3 @@
 .vscode/
 *.log
 node_modules/
-
-# Fotos personales: no se suben al repositorio (solo la guía de nombres).
-# Si quieres versionarlas, borra estas dos líneas.
-assets/fotos/*
-!assets/fotos/LEEME.txt
