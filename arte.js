@@ -852,15 +852,15 @@ const Arte = (() => {
     semilla(77);
     const pts = [];
     for (let t = 0; t <= 300; t += 10) pts.push([10 + t, 10 + rnd(-2, 2)]);
-    for (let t = 10; t <= 370; t += 10) pts.push([310 + rnd(-2, 2), 10 + t]);
-    for (let t = 290; t >= 0; t -= 10) pts.push([10 + t, 380 + rnd(-2, 2)]);
-    for (let t = 360; t > 0; t -= 10) pts.push([10 + rnd(-2, 2), 10 + t]);
+    for (let t = 10; t <= 480; t += 10) pts.push([310 + rnd(-2, 2), 10 + t]);
+    for (let t = 290; t >= 0; t -= 10) pts.push([10 + t, 490 + rnd(-2, 2)]);
+    for (let t = 470; t > 0; t -= 10) pts.push([10 + rnd(-2, 2), 10 + t]);
     const papel = 'M' + pts.map(([x, y]) => `${f(x)},${f(y)}`).join(' L') + ' Z';
     let s = `<path d="${papel}" fill="#000" opacity=".4" filter="url(#b8)" transform="translate(4,8)"/>`;
     s += `<path d="${papel}" fill="url(#hoja)" stroke="#8C6A48" stroke-width="1.2"/>`;
-    for (let y = 290; y < 370; y += 22) s += `<path d="M34,${y} H286" stroke="#B9A58E" stroke-width=".8" opacity=".6"/>`;
-    s += `<path d="M40,10 V380" stroke="#D9A0A8" stroke-width="1" opacity=".5"/>`;
-    return doc(320, 392, s, '<radialGradient id="hoja" cx=".5" cy=".45" r=".8"><stop offset="0" stop-color="#FBF3E2"/><stop offset=".8" stop-color="#F1E2C4"/><stop offset="1" stop-color="#E2CBA0"/></radialGradient>');
+    for (let y = 300; y < 480; y += 24) s += `<path d="M34,${y} H286" stroke="#B9A58E" stroke-width=".8" opacity=".45"/>`;
+    s += `<path d="M40,10 V490" stroke="#D9A0A8" stroke-width="1" opacity=".5"/>`;
+    return doc(320, 502, s, '<radialGradient id="hoja" cx=".5" cy=".45" r=".8"><stop offset="0" stop-color="#FBF3E2"/><stop offset=".8" stop-color="#F1E2C4"/><stop offset="1" stop-color="#E2CBA0"/></radialGradient>');
   }
 
   function cinta() {

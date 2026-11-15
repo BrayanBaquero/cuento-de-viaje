@@ -28,42 +28,66 @@ window.CONFIG = {
   /* ---------------- Las 4 etapas de nuestra historia ----------------
    *  titulo: nombre corto que se ve en el mapa (máx. ~16 letras).
    *  frase:  frase que aparece al entrar a la etapa.
-   *  recuerdos: exactamente 3, cada uno con { foto, texto, fecha }.   */
+   *  recuerdos: de 1 a 3 páginas del diario, cada una con
+   *    { foto, titulo, texto, lugar, fecha }. El nivel pone tantas páginas como recuerdos haya. */
   etapas: [
     {
       titulo: 'Nos conocimos',
       frase: 'Todo empezó con un "hola" que cambió mi año.',
       recuerdos: [
-        { foto: 'assets/fotos/conocimos-1.jpg', texto: 'La primera vez que te vi', fecha: '14 feb 2025' },
-        { foto: 'assets/fotos/conocimos-2.jpg', texto: 'Nuestro primer mensaje', fecha: '15 feb 2025' },
-        { foto: 'assets/fotos/conocimos-3.jpg', texto: 'Esa risa que no olvido', fecha: '20 feb 2025' },
+        {
+          foto: 'assets/fotos/guatavita.jpg', titulo: 'Nuestra primera salida a pueblear',
+          texto: 'Descubrimos Guatavita juntos, pero lo mejor de todo no fue el paisaje, sino compartir cada sonrisa y cada paso a tu lado.',
+          lugar: 'Guatavita', fecha: '7 jun 2026',
+        },
       ],
     },
     {
       titulo: 'Primera cita',
       frase: 'Llegué nervioso y me fui enamorado.',
       recuerdos: [
-        { foto: 'assets/fotos/cita-1.jpg', texto: 'El café que se enfrió', fecha: '1 mar 2025' },
-        { foto: 'assets/fotos/cita-2.jpg', texto: 'Caminamos sin rumbo', fecha: '1 mar 2025' },
-        { foto: 'assets/fotos/cita-3.jpg', texto: 'No quería que terminara', fecha: '1 mar 2025' },
+        {
+          foto: 'assets/fotos/chorrera-1.jpg', titulo: 'Luz entre la montaña',
+          texto: 'Dicen que La Chorrera es la cascada más alta, pero no hay altura que se compare con lo alto que me haces sentir cuando estoy contigo.',
+          lugar: 'Cascada La Chorrera', fecha: '20 jun 2026',
+        },
+        {
+          foto: 'assets/fotos/chorrera-2.jpg', titulo: 'Donde el tiempo se detiene',
+          texto: 'Llegamos hasta la gran caída de agua sin aliento, pero valió cada paso solo por sostenerte así y tomarnos esta foto.',
+          lugar: 'Cascada La Chorrera', fecha: '20 jun 2026',
+        },
       ],
     },
     {
       titulo: 'Nuestro lugar',
       frase: 'Hay un rincón del mundo que ya es solo nuestro.',
       recuerdos: [
-        { foto: 'assets/fotos/lugar-1.jpg', texto: 'Nuestro banquito', fecha: 'abr 2025' },
-        { foto: 'assets/fotos/lugar-2.jpg', texto: 'Tardes de ajedrez', fecha: 'may 2025' },
-        { foto: 'assets/fotos/lugar-3.jpg', texto: 'Aquí me reí como nunca', fecha: 'jun 2025' },
+        {
+          foto: 'assets/fotos/catmania-1.jpg', titulo: 'Tarde de michis y arte',
+          texto: 'Entre maullidos y pinceladas, esa tarde quedó grabada en mi corazón. Definitivamente, cualquier plan contigo se vuelve mágico.',
+          lugar: 'Catmania', fecha: '2 ago 2026',
+        },
+        {
+          foto: 'assets/fotos/catmania-2.jpg', titulo: 'Arte en concentración',
+          texto: 'Tú toda concentrada dando las últimas pinceladas, mientras los michis peleaban atrás.',
+          lugar: 'Catmania', fecha: '2 ago 2026',
+        },
+        {
+          foto: 'assets/fotos/catmania-3.jpg', titulo: 'Nuestras obras de arte',
+          texto: 'El resultado oficial de nuestros dotes artísticos. Entre pintura, gatitos y risas, logramos estas dos obras maestras. Gracias por un detalle tan inolvidable.',
+          lugar: 'Catmania', fecha: '2 ago 2026',
+        },
       ],
     },
     {
       titulo: 'Nuestro futuro',
       frase: 'Lo mejor todavía no ha pasado.',
       recuerdos: [
-        { foto: 'assets/fotos/futuro-1.jpg', texto: 'Viajes por hacer', fecha: 'pronto' },
-        { foto: 'assets/fotos/futuro-2.jpg', texto: 'Más días como hoy', fecha: 'siempre' },
-        { foto: 'assets/fotos/futuro-3.jpg', texto: 'Tú y yo', fecha: 'para siempre' },
+        {
+          foto: 'assets/fotos/minigolf.jpg', titulo: 'Tarde de minigolf y risas',
+          texto: 'Contemplando tu swing al darle a la pelota, princesa.',
+          lugar: 'Putt Colombia', fecha: '23 ago 2026',
+        },
       ],
     },
   ],
@@ -71,12 +95,12 @@ window.CONFIG = {
   /* ---------------- Minijuego 2: Memoria (6 fotos = 6 parejas) ---------------- */
   memoria: {
     fotos: [
-      'assets/fotos/memoria-1.jpg',
-      'assets/fotos/memoria-2.jpg',
-      'assets/fotos/memoria-3.jpg',
-      'assets/fotos/memoria-4.jpg',
-      'assets/fotos/memoria-5.jpg',
-      'assets/fotos/memoria-6.jpg',
+      'assets/fotos/guatavita.jpg',
+      'assets/fotos/chorrera-1.jpg',
+      'assets/fotos/chorrera-2.jpg',
+      'assets/fotos/catmania-1.jpg',
+      'assets/fotos/catmania-3.jpg',
+      'assets/fotos/minigolf.jpg',
     ],
   },
 
@@ -93,7 +117,7 @@ window.CONFIG = {
 
   /* ---------------- Minijuego 4: Rompecabezas deslizante ---------------- */
   rompecabezas: {
-    foto: 'assets/fotos/rompecabezas.jpg',   // ideal: foto cuadrada
+    foto: 'assets/fotos/chorrera-2.jpg',   // se recorta al centro en un cuadrado
   },
 
   /* ---------------- Trivia (cerradura extra del cofre) ----------------
@@ -129,7 +153,7 @@ window.CONFIG = {
     botonNo: 'No',
     // Textos que va tomando el botón "No" a medida que se encoge:
     textosNo: ['¿Segura?', 'Piénsalo bien…', '¿De verdad?', 'Última oportunidad'],
-    foto: 'assets/fotos/final.jpg',
+    foto: 'assets/fotos/juntos.jpg',
     mensajeFinal: '¡Gracias por decir que sí!\nTe quiero muchísimo. 💖',
   },
 

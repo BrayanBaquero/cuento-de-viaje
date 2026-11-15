@@ -140,4 +140,4 @@ En `.claude/launch.json` está configurado como `juego` en el puerto 5173 (el 80
 - En tamaño celular el headless deja el canvas descentrado: es un artefacto suyo, no del juego.
 - Las animaciones con tween no avanzan bien en headless, por eso existe `?captura`.
 
-**Fotos:** aún no hay ninguna; la carpeta `assets/fotos/` solo tiene `LEEME.txt`. Los 404 de fotos en consola son esperados hasta que el usuario las agregue.
+**Fotos:** en `assets/fotos/` (ignoradas por git) están las 8 del juego anterior del usuario (brayanbaquero.github.io/do-you-wanna-be), con sus títulos, mensajes, lugares y fechas ya pasados a `config.js`: Guatavita (etapa I), La Chorrera (II), Catmania (III), Putt Colombia (IV); `juntos.jpg` es la foto final. Cada etapa tiene de 1 a 3 recuerdos y el nivel pone esa cantidad de páginas. Del juego anterior solo se tomaron fotos y textos, nada de su estilo.

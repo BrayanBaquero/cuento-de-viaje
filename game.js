@@ -607,6 +607,28 @@ function foto(escena, x, y, w, h, ruta, paleta = PALETAS[0]) {
   return c;
 }
 
+// Página del diario (320×500): foto vertical pegada con cinta, título, texto a mano y pie.
+// datos = { foto, titulo, texto, pie, contador }
+function paginaRecuerdo(escena, x, y, datos, paleta) {
+  const c = escena.add.container(x, y);
+  c.add(escena.add.image(0, 0, 'pagina_diario'));
+  c.add(foto(escena, 0, -114, 210, 236, datos.foto, paleta).setAngle(-2));
+  c.add(escena.add.image(-98, -228, 'cinta').setAngle(-32));
+  c.add(escena.add.image(98, -228, 'cinta').setAngle(30));
+  let yTexto = 22;
+  if (datos.titulo) {
+    const t = texto(escena, 0, 22, datos.titulo, 23, hex(TINTA), { serif: true, peso: '700', ancho: 270, interlineado: -4, origenY: 0 });
+    c.add(t);
+    yTexto = 22 + t.height + 8;
+  }
+  const largo = (datos.texto || '').length;
+  c.add(texto(escena, 0, yTexto, datos.texto || '', largo > 130 ? 15 : 17, hex(TINTA),
+    { serif: true, peso: 'italic 600', ancho: 266, interlineado: 1, origenY: 0 }));
+  if (datos.pie) c.add(texto(escena, 0, 210, datos.pie, 16, '#B0485F', { serif: true, peso: 'italic 700', ancho: 260 }));
+  if (datos.contador) c.add(texto(escena, 124, 234, datos.contador, 13, '#8C6A48', { serif: true, peso: '700' }));
+  return c;
+}
+
 // Partículas sutiles (pétalos, chispas de farol, luciérnagas, estrellas).
 function particulasEtapa(escena, i) {
   const brilloSuave = (p, k, t) => Math.sin(t * Math.PI);
@@ -1346,7 +1368,10 @@ class Nivel extends Phaser.Scene {
       }
     });
     // Los recuerdos se muestran en el orden en que aparecen en el camino
-    this.recuerdos.getChildren().sort((a, b) => a.x - b.x).forEach((m, k) => { m.idx = k; });
+    const totalRecuerdos = CFG.etapas[i].recuerdos.length;
+    this.recuerdos.getChildren().slice().sort((a, b) => a.x - b.x).forEach((m, k) => {
+      if (k >= totalRecuerdos) { this.tweens.killTweensOf(m); m.destroy(); } else m.idx = k;
+    });
 
     def.moviles.forEach(([c, r, rango]) => {
       const m = this.moviles.create(c * TILE + TILE, r * TILE + 13, 'losa_' + i).setDepth(13);
@@ -1516,11 +1541,12 @@ class Nivel extends Phaser.Scene {
   cartelInicial(i) {
     const tinta = i === 3 ? hex(CREMA) : hex(TINTA);
     const sombra = i === 3 ? '#000000' : '#FFF6E2';
+    const n = CFG.etapas[i].recuerdos.length;
+    const objetivo = n === 1 ? 'Encuentra la página del diario y llega al cofre' : `Encuentra las ${n} páginas del diario y llega al cofre`;
     const lineas = [
       texto(this, W / 2, 200, `${ROMANOS[i]} · ${CFG.etapas[i].titulo}`, 36, tinta, { serif: true, peso: '700', sombra, desenfoque: 12 }),
       texto(this, W / 2, 248, CFG.etapas[i].frase, 19, tinta, { serif: true, peso: 'italic 600', ancho: 340, sombra, desenfoque: 10 }),
-      texto(this, W / 2, 300, TACTIL ? 'Encuentra las 3 páginas del diario y llega al cofre'
-        : 'Encuentra las 3 páginas del diario y llega al cofre\n← →  o  A D para moverte · Espacio para saltar', 15, tinta,
+      texto(this, W / 2, 300, TACTIL ? objetivo : objetivo + '\n← →  o  A D para moverte · Espacio para saltar', 15, tinta,
       { peso: '700', sombra, desenfoque: 8, interlineado: 4, ancho: 340 }),
     ];
     const novedad = [null,
@@ -1711,17 +1737,12 @@ class Nivel extends Phaser.Scene {
     this.jug.anims.pause();
 
     const velo = this.add.rectangle(W / 2, H / 2, W, H, 0x0A0608, 0.6).setScrollFactor(0).setDepth(80).setAlpha(0);
-    const hoja = this.add.container(W / 2, 410).setScrollFactor(0).setDepth(81);
-    hoja.add(this.add.image(0, 0, 'pagina_diario'));
-    const imagen = foto(this, 0, -66, 236, 186, r.foto, PALETAS[this.i]).setAngle(-2);
-    hoja.add(imagen);
-    hoja.add(this.add.image(-108, -152, 'cinta').setAngle(-32));
-    hoja.add(this.add.image(108, -152, 'cinta').setAngle(30));
-    hoja.add(texto(this, 0, 96, r.texto, 26, hex(TINTA), { serif: true, peso: 'italic 700', ancho: 250 }));
-    hoja.add(texto(this, 0, 142, r.fecha, 18, '#B0485F', { serif: true, peso: 'italic 600' }));
-    hoja.add(texto(this, 122, 172, `${idx + 1} / 3`, 14, '#8C6A48', { serif: true, peso: '700' }));
+    const total = CFG.etapas[this.i].recuerdos.length;
+    const pie = [r.lugar, r.fecha].filter(Boolean).join(' · ');
+    const hoja = paginaRecuerdo(this, W / 2, 400, { foto: r.foto, titulo: r.titulo, texto: r.texto, pie, contador: `${idx + 1} / ${total}` }, PALETAS[this.i])
+      .setScrollFactor(0).setDepth(81);
     hoja.setScale(0.05, 1).setAngle(-6);
-    const sigue = texto(this, W / 2, 640, TACTIL ? 'Toca para seguir' : 'Clic o Espacio para seguir', 18, hex(CREMA))
+    const sigue = texto(this, W / 2, 690, TACTIL ? 'Toca para seguir' : 'Clic o Espacio para seguir', 18, hex(CREMA))
       .setScrollFactor(0).setDepth(81).setAlpha(0);
 
     if (SIN_FUNDIDO) {
@@ -3068,15 +3089,10 @@ class Tesoro extends Phaser.Scene {
     this.estado = 'final';
     const velo = this.add.rectangle(W / 2, H / 2, W, H, 0x0A0608, 0.5).setDepth(60).setAlpha(0);
     this.tweens.add({ targets: velo, alpha: 1, duration: 600 });
-    const hoja = this.add.container(W / 2, 400).setDepth(61);
-    hoja.add(this.add.image(0, 0, 'pagina_diario'));
-    hoja.add(foto(this, 0, -66, 236, 186, CFG.final.foto, PALETAS[3]).setAngle(-2));
-    hoja.add(this.add.image(-108, -152, 'cinta').setAngle(-32));
-    hoja.add(this.add.image(108, -152, 'cinta').setAngle(30));
-    hoja.add(texto(this, 0, 104, CFG.final.mensajeFinal, 23, hex(TINTA), { serif: true, peso: 'italic 700', ancho: 260, interlineado: 2 }));
+    const hoja = paginaRecuerdo(this, W / 2, 390, { foto: CFG.final.foto, texto: CFG.final.mensajeFinal }, PALETAS[3]).setDepth(61);
     hoja.setScale(0.05, 1).setAngle(-6);
     this.tweens.add({ targets: hoja, scaleX: Math.min(1, (W - 30) / 320), scaleY: Math.min(1, (W - 30) / 320), angle: -2, duration: 600, ease: 'Back.easeOut', delay: 300 });
-    const otraVez = boton(this, W / 2, 712, 'Volver al inicio', () => irA(this, 'Intro'),
+    const otraVez = boton(this, W / 2, 700, 'Volver al inicio', () => irA(this, 'Intro'),
       { estilo: 'secundario', ancho: 240, alto: 52, tam: 24 }).setDepth(61).setAlpha(0);
     this.tweens.add({ targets: otraVez, alpha: 1, duration: 600, delay: 2500 });
   }
